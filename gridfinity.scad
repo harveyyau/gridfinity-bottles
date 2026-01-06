@@ -379,8 +379,9 @@ union() {
             // Wall starts at h_base (gridfinity top) to preserve base interface
             wall_start_z = h_base;
             stacking_lip_total_height = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
-            // Wall height: reaches object_height above holder floor, plus stacking lip if enabled
-            wall_height = (holder_start_z - h_base) + object_height + stacking_lip_total_height;
+            // Wall height: reaches object_height above holder floor
+            // NOTE: Do NOT include stacking_lip_total_height here - the lip is added separately
+            wall_height = (holder_start_z - h_base) + object_height;
             corner_radius = BASE_OUTSIDE_RADIUS;
             stacking_clearance = 0.25;
             
@@ -399,7 +400,7 @@ union() {
                 
                 // Cut receiving channel for stacking (chamfer for gridfinity feet to fit)
                 if (enable_stacking) {
-                    translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
+                    translate([0, 0, wall_start_z + wall_height])
                     stacking_receiver_cut(
                         wall_inner_width + stacking_clearance * 2,
                         wall_inner_depth + stacking_clearance * 2
@@ -410,8 +411,8 @@ union() {
             // Stacking interface on top of wall
             if (enable_stacking) {
                 // Add positive stacking lip (gridfinity foot profile) on outer edge
-                // Place at wall top minus lip height (wall_height already includes lip space)
-                translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
+                // Place at wall top (wall_height does NOT include lip - lip adds its own height)
+                translate([0, 0, wall_start_z + wall_height])
                 stacking_lip_positive(total_width, total_depth);
             }
         }

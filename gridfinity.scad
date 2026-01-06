@@ -1,34 +1,21 @@
-/*
- * Gridfinity Cylinder Holder Generator
- * 
- * A parametric OpenSCAD model for creating Gridfinity-compatible trays
- * that hold cylindrical objects (bottles, jars, etc.)
- *
- * Features:
- *   - Automatic optimal packing (hex or grid)
- *   - Optional tray walls for lifting
- *   - Optional raised floor
- *   - Stacking support
- *   - Full Gridfinity base compatibility
- */
-
-// ============================================================================
-// USER PARAMETERS (Customizer)
-// ============================================================================
+/* [Hidden] */
+// Curve smoothing - optimized for speed
+$fa = 15;
+$fs = 2;
 
 /* [Grid Size] */
 // Number of gridfinity units along X-axis
-gridx = 2; // [1:0.5:8]
+gridx = 5; // [1:0.5:8]
 // Number of gridfinity units along Y-axis
-gridy = 2; // [1:0.5:8]
+gridy = 2.5; // [1:0.5:8]
 
 /* [Cylinder Holders] */
 // Diameter of cylinders to hold (add ~0.5mm for clearance)
-cylinder_diameter = 26; // [10:1:100]
+cylinder_diameter = 45; // [10:1:100]
 // Height of holder rim above the base
 holder_rim_height = 15; // [5:1:50]
-// Thickness of rim wall around each holder
-holder_rim_thickness = 1.5; // [0.5:0.25:4]
+// Thickness of rim around each holder
+holder_rim_thickness = 3; // [0.5:0.25:4]
 // Extra taper at base of rim for strength
 holder_rim_taper = 1; // [0:0.5:3]
 // Depth of holder recess into base (0 = flush with baseplate top)
@@ -44,470 +31,940 @@ min_wall_between = 0; // [0:0.5:5]
 
 /* [Tray Wall] */
 // Add outer wall around the tray
-enable_tray_wall = false;
-// Wall height from base floor (set to match bottle height)
+enable_tray_wall = true;
+// Wall height from base floor (set to match bottle height for full coverage)
 tray_wall_height = 25; // [5:5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
 // Add stacking interface (allows trays to stack)
 enable_stacking = false;
 
-/* [Raised Floor] */
+/* [Floor] */
 // Fill empty space between holders with raised floor
-enable_raised_floor = false;
+enable_raised_floor = true;
 // Height of raised floor (from baseplate top)
 raised_floor_height = 8; // [1:1:30]
 
+/* [Hidden] */
+// number of bases along x-axis
+div_base_x = 1;
+// number of bases along y-axis
+div_base_y = 1;
+
+
+
 /* [Base Hole Options] */
-// Only cut magnet/screw holes at corners
+// only cut magnet/screw holes at the corners of the bin to save uneccesary print time
 only_corners = false;
-// Use gridfinity refined hole style (not compatible with magnet_holes)
+//Use gridfinity refined hole style. Not compatible with magnet_holes!
 refined_holes = false;
-// Add holes for 6mm x 2mm magnets
+// Base will have holes for 6mm Diameter x 2mm high magnets.
 magnet_holes = false;
-// Add holes for M3 screws
+// Base will have holes for M3 screws.
 screw_holes = false;
-// Add crush ribs to hold magnets
+// Magnet holes will have crush ribs to hold the magnet.
 crush_ribs = true;
-// Add chamfer to ease insertion
+// Magnet/Screw holes will have a chamfer to ease insertion.
 chamfer_holes = true;
+/* [Hidden] */
+// Magnet/Screw holes will be printed so supports are not needed.
+printable_hole_top = false;
 
 /* [Hidden] */
-// Render quality (higher = smoother but slower)
-$fa = 15;
-$fs = 2;
 
-// ============================================================================
-// GRIDFINITY CONSTANTS (Standard Specification)
-// ============================================================================
+hole_options = bundle_hole_options(refined_holes, magnet_holes, screw_holes, crush_ribs, chamfer_holes, printable_hole_top);
 
-// Grid dimensions
-GRID_PITCH = 42;           // Center-to-center distance between grid units
-GRID_UNIT_SIZE = 41.5;     // Size of individual base unit
-GRID_GAP = GRID_PITCH - GRID_UNIT_SIZE;  // 0.5mm gap between units
 
-// Base profile (the characteristic gridfinity "foot")
-BASE_CORNER_RADIUS = 3.75; // r_base = 7.5/2
-BASE_PROFILE = [
-    [0, 0],
-    [0.8, 0.8],
-    [0.8, 2.6],      // 0.8 + 1.8
-    [2.95, 4.75],    // 0.8 + 2.15, 0.8 + 1.8 + 2.15
-    [0, 4.75],
-    [0, 0]
-];
-BASE_PROFILE_MAX_X = 2.95;
-BASE_PROFILE_MAX_Y = 4.75;  // h_base
+// Gridfinity standard: 42mm grid pitch, 41.5mm base size
+l_grid = 42;  // Grid pitch (center-to-center distance)
+base_size = 41.5;  // Individual base unit size
+base_gap = l_grid - base_size;  // 0.5mm gap between bases
 
-// Baseplate dimensions
-BASEPLATE_HEIGHT = 6.4;     // bp_h_bot - total height of weighted base
-BASEPLATE_LIP_HEIGHT = 5;   // Height of stacking lip
+// Calculate total grid dimensions (matching gridfinityBase calculation)
+// Formula: gridx * l_grid - gap = gridx * 42 - 0.5
+total_width = gridx * l_grid - base_gap;
+total_depth = gridy * l_grid - base_gap;
 
-// Hole specifications
-MAGNET_HEIGHT = 2;
-MAGNET_HOLE_RADIUS = 3.25;  // 6.5/2
-SCREW_HOLE_RADIUS = 1.5;    // 3/2
-REFINED_HOLE_RADIUS = 2.93; // 5.86/2
-HOLE_DISTANCE_FROM_EDGE = 4.8;
+// Full bottle footprint radius (bottle + rim + taper)
+holder_footprint_radius = (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper;
 
-// Tolerances
-TOLERANCE = 0.01;
-LAYER_HEIGHT = 0.2;
+// Usable area for bottle placement (accounting for walls if enabled)
+usable_margin = enable_tray_wall ? tray_wall_thickness : 0;
+usable_width = total_width - usable_margin * 2;
+usable_depth = total_depth - usable_margin * 2;
 
-// ============================================================================
-// DERIVED VALUES (Calculated from parameters)
-// ============================================================================
+// Center-to-center spacing between bottles
+// Bottle spacing includes clearance and minimum wall between bottles
+holder_spacing = cylinder_diameter + holder_clearance + min_wall_between;
 
-// Total tray dimensions
-_total_width = gridx * GRID_PITCH - GRID_GAP;
-_total_depth = gridy * GRID_PITCH - GRID_GAP;
+// Hexagonal packing row spacing (sqrt(3)/2 ≈ 0.866)
+hex_row_spacing = holder_spacing * sqrt(3) / 2;
 
-// Holder geometry
-_holder_radius = cylinder_diameter / 2;
-_holder_outer_radius_bottom = _holder_radius + holder_rim_thickness + holder_rim_taper;
-_holder_outer_radius_top = _holder_radius + holder_rim_thickness;
-_holder_footprint_radius = _holder_outer_radius_bottom;
-_holder_total_height = holder_recess_depth + holder_rim_height;
-_holder_start_z = BASEPLATE_HEIGHT - holder_recess_depth;
-
-// Spacing and layout
-_holder_spacing = cylinder_diameter + holder_clearance + min_wall_between;
-_usable_margin = enable_tray_wall ? tray_wall_thickness : 0;
-_usable_width = _total_width - _usable_margin * 2;
-_usable_depth = _total_depth - _usable_margin * 2;
-
-// Wall dimensions
-_wall_inner_width = _total_width - tray_wall_thickness * 2;
-_wall_inner_depth = _total_depth - tray_wall_thickness * 2;
-_wall_start_z = BASE_PROFILE_MAX_Y;
-
-// Hole options bundle
-_hole_options = _bundle_hole_options(refined_holes, magnet_holes, screw_holes, 
-                                      crush_ribs, chamfer_holes, false);
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-// Bundle hole options into a list for passing to modules
-function _bundle_hole_options(refined, magnet, screw, ribs, chamfer, printable) =
-    [refined, magnet, screw, ribs, chamfer, printable];
-
-// Generate hexagonal pattern positions
-function _generate_hex_positions(w, h, spacing, swap_axes, x_off, y_off) =
+// Generate hex grid with specific orientation
+// swap_axes: if true, tight spacing is horizontal (good for tall containers)
+// x_offset, y_offset: shift pattern for optimization (0 to 0.5 range)
+function generate_hex_pattern(avail_w, avail_h, spacing, swap_axes, x_off, y_off) =
     let(
         tight = spacing * sqrt(3) / 2,
-        col_sp = swap_axes ? tight : spacing,
-        row_sp = swap_axes ? spacing : tight,
-        cols = ceil(w / col_sp) + 1,
-        rows = ceil(h / row_sp) + 1
-    )
-    [for (r = [0:rows], c = [0:cols])
-        let(
-            offset = swap_axes 
-                ? (c % 2 == 1 ? spacing/2 : 0)
-                : (r % 2 == 1 ? spacing/2 : 0),
-            x = c * col_sp + (swap_axes ? 0 : offset) + x_off * col_sp,
-            y = r * row_sp + (swap_axes ? offset : 0) + y_off * row_sp
-        )
-        if (x >= 0 && x <= w && y >= 0 && y <= h) [x, y]
-    ];
+        col_spacing = swap_axes ? tight : spacing,
+        row_spacing = swap_axes ? spacing : tight,
+        
+        num_cols = ceil(avail_w / col_spacing) + 1,
+        num_rows = ceil(avail_h / row_spacing) + 1,
+        
+        positions = [for (row = [0:num_rows])
+                        for (col = [0:num_cols])
+                            let(
+                                // Hex offset alternates based on axis orientation
+                                offset = swap_axes 
+                                    ? (col % 2 == 1 ? spacing / 2 : 0)  // Y offset for alternate columns
+                                    : (row % 2 == 1 ? spacing / 2 : 0), // X offset for alternate rows
+                                x = col * col_spacing + (swap_axes ? 0 : offset) + x_off * col_spacing,
+                                y = row * row_spacing + (swap_axes ? offset : 0) + y_off * row_spacing
+                            )
+                            if (x >= 0 && x <= avail_w && y >= 0 && y <= avail_h)
+                                [x, y]
+                    ]
+    ) positions;
 
-// Find best hex configuration by trying multiple orientations
-function _find_best_hex_config(w, h, spacing) =
+// Try hex configurations and return the best one (optimized - fewer configs)
+function find_best_hex_config(avail_w, avail_h, spacing) =
     let(
+        // Try both orientations with key offsets only
         configs = [
             [false, 0, 0], [false, 0.5, 0], [false, 0, 0.5], [false, 0.5, 0.5],
             [true, 0, 0], [true, 0.5, 0], [true, 0, 0.5], [true, 0.5, 0.5]
         ],
         counts = [for (c = configs) 
-            len(_generate_hex_positions(w, h, spacing, c[0], c[1], c[2]))
-        ],
+                    len(generate_hex_pattern(avail_w, avail_h, spacing, c[0], c[1], c[2]))
+                 ],
         max_count = max(counts),
         best_idx = search(max_count, counts)[0]
     )
     configs[best_idx];
 
-// Generate simple grid positions
-function _generate_grid_positions(w, h, spacing) =
+// Generate grid positions
+function generate_grid_positions(avail_w, avail_h, spacing) =
     let(
-        cols = max(1, floor(w / spacing) + 1),
-        rows = max(1, floor(h / spacing) + 1)
+        num_cols = max(1, floor(avail_w / spacing) + 1),
+        num_rows = max(1, floor(avail_h / spacing) + 1)
     )
-    [for (r = [0:rows-1], c = [0:cols-1])
-        let(x = c * spacing, y = r * spacing)
-        if (x <= w && y <= h) [x, y]
+    [for (row = [0:num_rows-1])
+        for (col = [0:num_cols-1])
+            let(x = col * spacing, y = row * spacing)
+            if (x <= avail_w && y <= avail_h) [x, y]
     ];
 
-// Center an array of positions within available space
-function _center_positions(positions, w, h, edge_dist) =
+// Center positions within usable area
+function center_positions(positions, avail_w, avail_h, edge_dist) =
     len(positions) == 0 ? [] :
     let(
         xs = [for (p = positions) p[0]],
         ys = [for (p = positions) p[1]],
-        array_w = max(xs) - min(xs),
-        array_h = max(ys) - min(ys),
-        off_x = edge_dist + (w - array_w) / 2 - min(xs),
-        off_y = edge_dist + (h - array_h) / 2 - min(ys)
+        min_x = min(xs),
+        max_x = max(xs),
+        min_y = min(ys),
+        max_y = max(ys),
+        array_w = max_x - min_x,
+        array_h = max_y - min_y,
+        off_x = edge_dist + (avail_w - array_w) / 2 - min_x,
+        off_y = edge_dist + (avail_h - array_h) / 2 - min_y
     )
     [for (p = positions) [p[0] + off_x, p[1] + off_y]];
 
-// Main function to generate optimal holder positions
-function _generate_holder_positions() = 
+// Generate valid bottle positions with optimal packing
+function generate_valid_positions() = 
     let(
-        edge_dist = _holder_footprint_radius,
-        avail_w = _usable_width - 2 * edge_dist,
-        avail_h = _usable_depth - 2 * edge_dist,
+        min_edge_dist = holder_footprint_radius,
+        avail_w = usable_width - 2 * min_edge_dist,
+        avail_h = usable_depth - 2 * min_edge_dist,
         
-        grid_pos = _generate_grid_positions(avail_w, avail_h, _holder_spacing),
-        best_hex = _find_best_hex_config(avail_w, avail_h, _holder_spacing),
-        hex_pos = _generate_hex_positions(avail_w, avail_h, _holder_spacing,
-                                          best_hex[0], best_hex[1], best_hex[2]),
+        // Grid positions (preferred when counts are equal)
+        grid_positions = generate_grid_positions(avail_w, avail_h, holder_spacing),
         
-        // Prefer grid when counts are equal (cleaner look)
-        use_hex = packing_mode != "grid" && len(hex_pos) > len(grid_pos),
-        selected = use_hex ? hex_pos : grid_pos,
-        centered = _center_positions(selected, avail_w, avail_h, edge_dist)
+        // Find best hex configuration
+        best_config = find_best_hex_config(avail_w, avail_h, holder_spacing),
+        hex_positions = generate_hex_pattern(avail_w, avail_h, holder_spacing, 
+                                             best_config[0], best_config[1], best_config[2]),
+        
+        // Only use hex if it fits MORE bottles (prefer grid when equal)
+        use_hex = packing_mode != "grid" && len(hex_positions) > len(grid_positions),
+        selected = use_hex ? hex_positions : grid_positions,
+        
+        centered = center_positions(selected, avail_w, avail_h, min_edge_dist)
     )
-    len(centered) > 0 ? centered : [[_usable_width/2, _usable_depth/2]];
+    len(centered) > 0 ? centered : [[usable_width/2, usable_depth/2]];
 
-// Pre-calculate positions
-_positions = _generate_holder_positions();
-_start_offset_x = -(_total_width / 2) + _usable_margin;
-_start_offset_y = -(_total_depth / 2) + _usable_margin;
 
-// ============================================================================
-// GEOMETRY MODULES
-// ============================================================================
 
-/**
- * Creates a rounded rectangle (2D or 3D)
- */
-module rounded_rectangle(size, radius, center = false) {
-    if (len(size) == 3) {
-        linear_extrude(size.z)
-        offset(radius)
-        square([size.x - radius*2, size.y - radius*2], center = center);
-    } else {
-        offset(radius)
-        square([size.x - radius*2, size.y - radius*2], center = center);
+// STANDARD
+
+/* [Hidden] */
+r_c1 = 0.8; 
+h_bot = 2.2; 
+// l_grid defined earlier with other grid dimensions
+r_base = 7.5 / 2; 
+TOLLERANCE = 0.01; 
+LAYER_HEIGHT = 0.2;
+MAGNET_HEIGHT = 2; 
+SCREW_HOLE_RADIUS = 3 / 2;
+MAGNET_HOLE_RADIUS = 6.5 / 2;
+MAGNET_HOLE_DEPTH = MAGNET_HEIGHT + (LAYER_HEIGHT * 2); 
+d_hole_from_side=8; 
+HOLE_DISTANCE_FROM_BOTTOM_EDGE = 4.8; 
+REFINED_HOLE_RADIUS = 5.86 / 2; 
+REFINED_HOLE_HEIGHT = MAGNET_HEIGHT - 0.1; 
+REFINED_HOLE_BOTTOM_LAYERS = 2; 
+MAGNET_HOLE_CRUSH_RIB_INNER_RADIUS = 5.9 / 2; 
+MAGNET_HOLE_CRUSH_RIB_COUNT = 8; 
+CHAMFER_ADDITIONAL_RADIUS = 0.8;
+CHAMFER_ANGLE = 45; 
+BASEPLATE_SCREW_COUNTERSINK_ADDITIONAL_RADIUS = 5/2; 
+BASEPLATE_SCREW_COUNTERBORE_RADIUS = 5.5/2; 
+BASEPLATE_SCREW_COUNTERBORE_HEIGHT = 3; 
+r_f2 = 2.8; 
+d_div = 1.2; 
+d_wall = 0.95; 
+d_clear = 0.25;
+d_tabh = 15.85; 
+d_tabw = 42; 
+a_tab = 36;
+
+d_wall2 = r_base-r_c1-d_clear*sqrt(2);
+d_magic = -2*d_clear-2*d_wall+d_div; 
+
+// ****************************************
+BASE_OUTSIDE_RADIUS = r_base;  
+
+BASE_PROFILE = [
+    [0, 0], // Innermost bottom point
+    [0.8, 0.8], // Up and out at a 45 degree angle
+    [0.8, (0.8+1.8)], // Straight up
+    [(0.8+2.15), (0.8+1.8+2.15)], // Up and out at a 45 degree angle
+    [0, (0.8+1.8+2.15)], // Go in to form a solid polygon
+    [0, 0] //Back to start
+];  
+BASE_PROFILE_MAX = BASE_PROFILE[3];  
+BASE_SIZE = 41.5;  
+
+h_base = BASE_PROFILE_MAX.y; 
+
+BASEPLATE_OUTSIDE_RADIUS = 8 / 2; 
+BASEPLATE_LIP = [
+    [0, 0], // Innermost bottom point
+    [0.7, 0.7], // Up and out at a 45 degree angle
+    [0.7, (0.7+1.8)], // Straight up
+    [(0.7+2.15), (0.7+1.8+2.15)], // Up and out at a 45 degree angle
+    [(0.7+2.15), 0], // Straight down
+    [0, 0] //Back to start
+];
+
+BASEPLATE_LIP_HEIGHT = 5;
+
+BASEPLATE_CLEARANCE_HEIGHT = BASEPLATE_LIP_HEIGHT - BASEPLATE_LIP[3].y;
+assert(BASEPLATE_CLEARANCE_HEIGHT > 0, "Negative clearance doesn't make sense.");
+BASEPLATE_LIP_MAX = [BASEPLATE_LIP[3].x, BASEPLATE_LIP_HEIGHT];
+
+// ****************************************
+// Weighted Baseplate
+// ****************************************
+
+// Baseplate bottom part height (part added with weigthed=true)
+bp_h_bot = 6.4;
+// Baseplate bottom cutout rectangle size
+bp_cut_size = 21.4;
+// Baseplate bottom cutout rectangle depth
+bp_cut_depth = 4;
+// Baseplate bottom cutout rounded thingy width
+bp_rcut_width = 8.5;
+// Baseplate bottom cutout rounded thingy left
+bp_rcut_length = 4.25;
+// Baseplate bottom cutout rounded thingy depth
+bp_rcut_depth = 2;
+
+// ****************************************
+
+// radius of cutout for skeletonized baseplate
+r_skel = 2;
+// minimum baseplate thickness (when skeletonized)
+h_skel = 1;
+
+holder_start_z = bp_h_bot - holder_recess_depth;
+
+
+// Generate validated and centered bottle positions
+positions = generate_valid_positions();
+
+// Starting position offset (positions are already centered within usable area)
+start_offset_x = -(total_width / 2) + usable_margin;
+start_offset_y = -(total_depth / 2) + usable_margin;
+
+// Wall dimensions
+wall_total_height = holder_start_z + holder_recess_depth + holder_rim_height + tray_wall_height;
+wall_inner_width = total_width - tray_wall_thickness * 2;
+wall_inner_depth = total_depth - tray_wall_thickness * 2;
+
+union() {
+    // Gridfinity base - clipped to match wall footprint for fractional grids
+    intersection() {
+        gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options);
+        // Clip to wall outer boundary
+        translate([0, 0, -1])
+        linear_extrude(h_base + 10)
+        offset(BASE_OUTSIDE_RADIUS)
+        square([total_width - BASE_OUTSIDE_RADIUS * 2, total_depth - BASE_OUTSIDE_RADIUS * 2], center = true);
     }
-}
-
-/**
- * Creates a single holder rim (tapered cylinder with straight hole)
- */
-module holder_rim(inner_r, outer_r_bottom, outer_r_top, height) {
-    difference() {
-        cylinder(height, outer_r_bottom, outer_r_top);
-        translate([0, 0, -0.1])
-        cylinder(height + 0.2, inner_r, inner_r);
-    }
-}
-
-/**
- * Creates all holder rims at their positions
- */
-module holder_array() {
-    translate([_start_offset_x, _start_offset_y, _holder_start_z])
-    for (pos = _positions) {
-        translate([pos[0], pos[1], 0])
-        holder_rim(_holder_radius, _holder_outer_radius_bottom, 
-                   _holder_outer_radius_top, _holder_total_height);
-    }
-}
-
-/**
- * Creates the raised floor with holes for holders
- */
-module raised_floor() {
-    floor_height = min(raised_floor_height, holder_rim_height - 1);
-    floor_w = enable_tray_wall ? _wall_inner_width - 0.5 : _total_width - 0.5;
-    floor_d = enable_tray_wall ? _wall_inner_depth - 0.5 : _total_depth - 0.5;
-    cutout_r = _holder_outer_radius_top + 0.2;
     
-    difference() {
-        translate([0, 0, _holder_start_z + floor_height/2])
-        cube([floor_w, floor_d, floor_height], center = true);
-        
-        translate([_start_offset_x, _start_offset_y, _holder_start_z - 0.1])
-        for (pos = _positions) {
-            translate([pos[0], pos[1], 0])
-            cylinder(floor_height + 0.2, cutout_r, cutout_r);
-        }
-    }
-}
-
-/**
- * Creates the tray wall
- */
-module tray_wall() {
-    stacking_height = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
-    wall_height = tray_wall_height + stacking_height;
-    inner_r = max(0.1, BASE_CORNER_RADIUS - tray_wall_thickness);
+    // Holder rims with holes - only clip these if wall is enabled
+    clip_width = enable_tray_wall ? wall_inner_width : total_width;
+    clip_depth = enable_tray_wall ? wall_inner_depth : total_depth;
     
-    difference() {
-        translate([0, 0, _wall_start_z])
-        linear_extrude(wall_height)
+    intersection() {
         difference() {
-            offset(BASE_CORNER_RADIUS)
-            square([_total_width - BASE_CORNER_RADIUS*2, 
-                    _total_depth - BASE_CORNER_RADIUS*2], center = true);
-            offset(inner_r)
-            square([_wall_inner_width - inner_r*2, 
-                    _wall_inner_depth - inner_r*2], center = true);
+            // Holder rim solids - tapered outer
+            translate([start_offset_x, start_offset_y, holder_start_z])
+            for (pos = positions)
+                translate([pos[0], pos[1], 0])
+                cylinder(holder_recess_depth + holder_rim_height, 
+                         (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper, 
+                         (cylinder_diameter / 2) + holder_rim_thickness);
+            
+            // Cut straight holes through holders
+            translate([start_offset_x, start_offset_y, holder_start_z - 0.1])
+            for (pos = positions)
+                translate([pos[0], pos[1], 0])
+                cylinder(holder_recess_depth + holder_rim_height + 0.2, 
+                         cylinder_diameter / 2, 
+                         cylinder_diameter / 2);
+        }
+        // Clip holder rims to fit inside wall
+        translate([-clip_width/2, -clip_depth/2, -1])
+        cube([clip_width, clip_depth, 300]);
+    }
+    
+        // Raised floor to fill empty space between bottles
+        if (enable_raised_floor) {
+            floor_top = holder_start_z + min(raised_floor_height, holder_rim_height - 1);
+            
+            // Floor dimensions - fit inside wall if enabled
+            floor_width = enable_tray_wall ? wall_inner_width - 0.5 : total_width - 0.5;
+            floor_depth = enable_tray_wall ? wall_inner_depth - 0.5 : total_depth - 0.5;
+            
+            difference() {
+                // Solid floor block
+                translate([0, 0, holder_start_z + floor_top / 2])
+                cube([floor_width, floor_depth, floor_top], center = true);
+                
+                // Cut out bottle holes
+                translate([start_offset_x, start_offset_y, holder_start_z - 0.1])
+                for (pos = positions)
+                    translate([pos[0], pos[1], 0])
+                    cylinder(floor_top + 0.2, 
+                             (cylinder_diameter / 2) + holder_rim_thickness + 0.2, 
+                             (cylinder_diameter / 2) + holder_rim_thickness + 0.2);
+            }
         }
         
-        if (enable_stacking) {
-            translate([0, 0, _wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
-            stacking_receiver_cut(_wall_inner_width + 0.5, _wall_inner_depth + 0.5);
+        // Tray wall for lifting/stacking
+        if (enable_tray_wall) {
+            // Wall starts at h_base (top of gridfinity profile) so base still fits into grid
+            wall_start_z = h_base;
+            stacking_lip_total_height = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
+            wall_height = tray_wall_height + stacking_lip_total_height;
+            inner_radius = max(0.1, BASE_OUTSIDE_RADIUS - tray_wall_thickness);
+            stacking_clearance = 0.25;
+            
+            difference() {
+                // Main wall - starts from h_base to preserve gridfinity interface
+                translate([0, 0, wall_start_z])
+                linear_extrude(wall_height)
+                difference() {
+                    offset(BASE_OUTSIDE_RADIUS)
+                    square([total_width - BASE_OUTSIDE_RADIUS * 2, total_depth - BASE_OUTSIDE_RADIUS * 2], center = true);
+                    
+                    offset(inner_radius)
+                    square([wall_inner_width - inner_radius * 2, wall_inner_depth - inner_radius * 2], center = true);
+                }
+                
+                // Cut stacking receiving channel into top
+                if (enable_stacking) {
+                    translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
+                    stacking_receiver_cut(
+                        total_width - tray_wall_thickness * 2 + stacking_clearance * 2,
+                        total_depth - tray_wall_thickness * 2 + stacking_clearance * 2
+                    );
+                }
+            }
         }
     }
-}
+
+
+// ===== Modules ===== //
 
 /**
- * Creates the stacking receiver channel (cutter)
+ * Creates the negative (cutter) for the stacking receiver channel.
+ * Simple stepped ledge that receives the BASE_PROFILE of a stacked tray.
  */
-module stacking_receiver_cut(inner_w, inner_d) {
-    ledge_depth = BASE_PROFILE_MAX_X + 0.5;
-    ledge_height = BASEPLATE_LIP_HEIGHT + 1;
-    inner_r = max(0.1, BASE_CORNER_RADIUS - ledge_depth);
+module stacking_receiver_cut(inner_width, inner_depth) {
+    // Simple approach: cut a stepped channel into the top of the wall
+    // Step 1: shallow ledge for the base profile to rest on
+    // Step 2: deeper channel for the angled portion
     
+    ledge_depth = BASE_PROFILE[3].x + 0.5;  // ~3.5mm inward
+    ledge_height = BASEPLATE_LIP_HEIGHT + 1;
+    inner_step_depth = BASE_PROFILE[2].x + 0.3;  // ~1.1mm for the vertical part
+    inner_step_height = BASE_PROFILE[2].y;  // ~2.6mm
+    
+    inner_radius = max(0.1, BASE_OUTSIDE_RADIUS - ledge_depth);
+    step_radius = max(0.1, BASE_OUTSIDE_RADIUS - inner_step_depth);
+    
+    // Outer ledge cut
     linear_extrude(ledge_height)
     difference() {
-        offset(BASE_CORNER_RADIUS)
-        square([inner_w - BASE_CORNER_RADIUS*2, inner_d - BASE_CORNER_RADIUS*2], center = true);
-        offset(inner_r)
-        square([inner_w - ledge_depth*2 - inner_r*2, 
-                inner_d - ledge_depth*2 - inner_r*2], center = true);
+        offset(BASE_OUTSIDE_RADIUS)
+        square([inner_width - BASE_OUTSIDE_RADIUS * 2, inner_depth - BASE_OUTSIDE_RADIUS * 2], center = true);
+        
+        offset(inner_radius)
+        square([inner_width - ledge_depth * 2 - inner_radius * 2, 
+                inner_depth - ledge_depth * 2 - inner_radius * 2], center = true);
+    }
+    
+    // Inner step cut (deeper, for the base profile's vertical portion)
+    linear_extrude(inner_step_height)
+    difference() {
+        offset(inner_radius + 0.1)
+        square([inner_width - ledge_depth * 2 - inner_radius * 2, 
+                inner_depth - ledge_depth * 2 - inner_radius * 2], center = true);
+        
+        offset(step_radius)
+        square([inner_width - ledge_depth * 2 - inner_step_depth * 2 - step_radius * 2,
+                inner_depth - ledge_depth * 2 - inner_step_depth * 2 - step_radius * 2], center = true);
     }
 }
 
-// ============================================================================
-// GRIDFINITY BASE MODULES (Standard Library)
-// ============================================================================
+module gridfinityBase(gx, gy, length, dx, dy, hole_options=bundle_hole_options(), off=0, final_cut=true, only_corners=false) {
+    assert(
+        is_num(gx) 
+        );
+        assert(
+        is_num(gy) 
+        );
+        assert(
+        is_num(length) 
+        );
+        assert(
+        is_num(dx) 
+        );
+        assert(
+        is_num(dy) 
+        );
+        assert(
+        is_bool(final_cut) 
+        );
+        assert(
+        is_bool(only_corners) 
+        );
+    dbnxt = [for (i=[1:5]) if (abs(gx*i)%1 < 0.001 || abs(gx*i)%1 > 0.999) i];
+    dbnyt = [for (i=[1:5]) if (abs(gy*i)%1 < 0.001 || abs(gy*i)%1 > 0.999) i];
+    dbnx = 1/(dx != 0 ? round(dx) : (len(dbnxt) > 0 ? dbnxt[0] : 1));
+    dbny = 1/(dy != 0 ? round(dy) : (len(dbnyt) > 0 ? dbnyt[0] : 1));
 
-/**
- * Sweeps a 2D profile around a rounded rectangle path
- */
-module sweep_rounded(width, length) {
-    half_w = width / 2;
-    half_l = length / 2;
-    
-    // Four sides
-    for (angle = [0, 90, 180, 270]) {
-        rotate([0, 0, angle])
-        translate([angle == 0 || angle == 180 ? half_w : half_l, 0, 0])
-        rotate([90, 0, 90])
-        linear_extrude(angle == 0 || angle == 180 ? width : length, center = true)
-        children();
+    // Final size in number of bases
+    grid_size = [gx/dbnx, gy/dbny];
+
+    // Per spec, there's a 0.5mm gap between each base,
+    // But that needs to be scaled based on everything else.
+    individual_base_size_mm = [dbnx, dbny] * BASE_SIZE;
+    base_center_distance_mm = [dbnx, dbny] * length;
+    gap_mm = base_center_distance_mm - individual_base_size_mm;
+
+    // Final size of the base top. In mm.
+    grid_size_mm = [
+        base_center_distance_mm.x * grid_size.x,
+        base_center_distance_mm.y * grid_size.y,
+    ] - gap_mm;
+
+    if (final_cut) {
+        translate([0, 0, h_base-TOLLERANCE])
+        rounded_square([grid_size_mm.x, grid_size_mm.y, h_bot], BASE_OUTSIDE_RADIUS, center=true);
     }
-    
-    // Four corners
-    for (x = [-1, 1], y = [-1, 1]) {
-        translate([x * half_w, y * half_l, 0])
-        rotate([0, 0, (x > 0 ? 0 : 180) + (y > 0 ? 0 : (x > 0 ? -90 : 90))])
-        rotate_extrude(angle = 90)
-        children();
+
+    if(only_corners) {
+        difference(){
+            pattern_linear(grid_size.x, grid_size.y, base_center_distance_mm.x, base_center_distance_mm.y)
+            block_base(bundle_hole_options(), 0, individual_base_size_mm);
+
+            copy_mirror([0, 1, 0]) {
+                copy_mirror([1, 0, 0]) {
+                    translate([
+                        grid_size_mm.x/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
+                        grid_size_mm.y/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
+                        0
+                    ])
+                    block_base_hole(hole_options, off);
+                }
+            }
+        }
+    }
+    else {
+        pattern_linear(grid_size.x, grid_size.y, base_center_distance_mm.x, base_center_distance_mm.y)
+        block_base(hole_options, off, individual_base_size_mm);
     }
 }
 
-/**
- * Creates a single gridfinity base unit
- */
-module block_base(hole_opts, off = 0, size = [GRID_UNIT_SIZE, GRID_UNIT_SIZE]) {
-    translation_x = BASE_CORNER_RADIUS - BASE_PROFILE_MAX_X;
-    profile_size = size - [2*BASE_CORNER_RADIUS, 2*BASE_CORNER_RADIUS];
-    bottom_size = profile_size + [2*translation_x, 2*translation_x];
-    
+module block_base(hole_options, off=0, size=[BASE_SIZE, BASE_SIZE]) {
+    assert(
+        is_list(size) &&
+        len(size) == 2
+    );
+
+    // How far, in the +x direction,
+    // the profile needs to be from it's [0, 0] point
+    // such that when swept by 90 degrees to produce a corner,
+    // the outside edge has the desired radius.
+    translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;
+
+    outer_diameter = [2*BASE_OUTSIDE_RADIUS, 2*BASE_OUTSIDE_RADIUS];
+    base_profile_size = size - outer_diameter;
+    base_bottom_size = base_profile_size + [2*translation_x, 2*translation_x];
+    assert(base_profile_size.x > 0 && base_profile_size.y > 0,
+        str("Minimum size of a single base must be greater than ", outer_diameter)
+    );
     render(convexity = 2)
     difference() {
         union() {
-            sweep_rounded(profile_size.x, profile_size.y)
+            sweep_rounded(base_profile_size.x, base_profile_size.y)
             translate([translation_x, 0, 0])
             polygon(BASE_PROFILE);
-            
-            linear_extrude(BASE_PROFILE_MAX_Y)
-            offset(translation_x)
-            square([bottom_size.x, bottom_size.y], center = true);
+
+            rounded_square(
+                [
+                    base_bottom_size.x + TOLLERANCE,
+                    base_bottom_size.y + TOLLERANCE,
+                    BASE_PROFILE_MAX.y
+                ],
+                translation_x,
+                center=true
+            );
         }
-        
-        // Corner holes
-        for (a = [0:90:270]) {
-            i = sign(cos(a + 1));
-            j = sign(sin(a + 1));
-            translate([i * (bottom_size.x/2 - HOLE_DISTANCE_FROM_EDGE),
-                       j * (bottom_size.y/2 - HOLE_DISTANCE_FROM_EDGE), 0])
+        // 4 holes
+        // Need this fancy code to support refined holes and non-square bases.
+        for(a=[0:90:270]){
+            // i and j represent the 4 quadrants.
+            // The +1 is used to keep any values from being exactly 0.
+            j = sign(sin(a+1));
+            i = sign(cos(a+1));
+            translate([
+                i * (base_bottom_size.x/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE),
+                j * (base_bottom_size.y/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE),
+                0])
             rotate([0, 0, a])
-            block_base_hole(hole_opts, off);
+            block_base_hole(hole_options, off);
         }
     }
 }
 
-/**
- * Creates a base hole (magnet, screw, or refined)
- */
-module block_base_hole(hole_opts, off = 0) {
-    refined = hole_opts[0];
-    magnet = hole_opts[1];
-    screw = hole_opts[2];
-    ribs = hole_opts[3];
-    chamfer = hole_opts[4];
-    
-    if (refined) {
-        translate([0, 0, -0.1])
-        cylinder(MAGNET_HEIGHT + 0.1, REFINED_HOLE_RADIUS, REFINED_HOLE_RADIUS);
+function is_even(number) = (number%2)==0;
+
+module rounded_square(size, radius, center = false) {
+    assert(is_num(size) ||
+        (is_list(size) && (
+            (len(size) == 2 && is_num(size.x) && is_num(size.y)) ||
+            (len(size) == 3 && is_num(size.x) && is_num(size.y) && is_num(size.z))
+        ))
+    );
+    assert(is_num(radius) && radius >= 0 && is_bool(center));
+
+    // Make sure something is produced.
+    if (is_num(size)) {
+        assert((size/2) > radius);
     } else {
-        if (magnet) {
-            translate([0, 0, -0.1])
-            cylinder(MAGNET_HEIGHT + LAYER_HEIGHT*2 + 0.1, 
-                     MAGNET_HOLE_RADIUS, MAGNET_HOLE_RADIUS);
+        assert((size.x/2) > radius && (size.y/2 > radius));
+        if (len(size) == 3) {
+            assert(size.z > 0);
         }
-        if (screw) {
-            translate([0, 0, -0.1])
-            cylinder(BASEPLATE_HEIGHT + 0.2, SCREW_HOLE_RADIUS, SCREW_HOLE_RADIUS);
+    }
+
+    if (is_list(size) && len(size) == 3) {
+        linear_extrude(size.z)
+        _internal_rounded_square_2d(size, radius, center);
+    } else {
+        _internal_rounded_square_2d(size, radius, center);
+    }
+}
+
+module _internal_rounded_square_2d(size, radius, center) {
+    diameter = 2*radius;
+    if (is_list(size)) {
+        offset(radius)
+        square([size.x-diameter, size.y-diameter], center = center);
+    } else {
+        offset(radius)
+        square(size-diameter, center = center);
+    }
+}
+
+
+module copy_mirror(vec=[0,1,0]) {
+    children();
+    if (vec != [0,0,0])
+    mirror(vec)
+    children();
+}
+
+module pattern_linear(x = 1, y = 1, sx = 0, sy = 0) {
+    yy = sy <= 0 ? sx : sy;
+    translate([-(x-1)*sx/2,-(y-1)*yy/2,0])
+    for (i = [1:ceil(x)])
+    for (j = [1:ceil(y)])
+    translate([(i-1)*sx,(j-1)*yy,0])
+    children();
+}
+
+
+function vector_magnitude(vector) =
+    sqrt(vector.x^2 + vector.y^2 + (len(vector) == 3 ? vector.z^2 : 0));
+
+function vector_as_unit(vector) = vector / vector_magnitude(vector);
+
+function atanv(vector) = atan2(vector.y, vector.x);
+
+function _affine_rotate_x(angle_x) = [
+    [1,  0, 0, 0],
+    [0, cos(angle_x), -sin(angle_x), 0],
+    [0, sin(angle_x), cos(angle_x), 0],
+    [0, 0, 0, 1]
+];
+
+function _affine_rotate_y(angle_y) = [
+    [cos(angle_y),  0, sin(angle_y), 0],
+    [0, 1, 0, 0],
+    [-sin(angle_y), 0, cos(angle_y), 0],
+    [0, 0, 0, 1]
+];
+
+function _affine_rotate_z(angle_z) = [
+    [cos(angle_z), -sin(angle_z), 0, 0],
+    [sin(angle_z), cos(angle_z), 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1]
+];
+
+function affine_rotate(angle_vector) =
+    _affine_rotate_z(angle_vector.z) * _affine_rotate_y(angle_vector.y) * _affine_rotate_x(angle_vector.x);
+
+function affine_translate(vector) = [
+    [1, 0, 0, vector.x],
+    [0, 1, 0, vector.y],
+    [0, 0, 1, vector.z],
+    [0, 0, 0, 1]
+];
+
+
+module sweep_rounded(width=10, length=10) {
+    assert(width > 0 && length > 0);
+
+    half_width = width/2;
+    half_length = length/2;
+    path_points = [
+        [-half_width, half_length],  //Start
+        [half_width, half_length], // Over
+        [half_width, -half_length], //Down
+        [-half_width, -half_length], // Back over
+        [-half_width, half_length]  // Up to start
+    ];
+    path_vectors = [
+        path_points[1] - path_points[0],
+        path_points[2] - path_points[1],
+        path_points[3] - path_points[2],
+        path_points[4] - path_points[3],
+    ];
+    // These contain the translations, but not the rotations
+    // OpenSCAD requires this hacky for loop to get accumulate to work!
+    first_translation = affine_translate([path_points[0].y, 0,path_points[0].x]);
+    affine_translations = concat([first_translation], [
+        for (i = 0, a = first_translation;
+            i < len(path_vectors);
+            a=a * affine_translate([path_vectors[i].y, 0, path_vectors[i].x]), i=i+1)
+        a * affine_translate([path_vectors[i].y, 0, path_vectors[i].x])
+    ]);
+
+    // Bring extrusion to the xy plane
+    affine_matrix = affine_rotate([90, 0, 90]);
+
+    walls = [
+        for (i = [0 : len(path_vectors) - 1])
+        affine_matrix * affine_translations[i]
+        * affine_rotate([0, atanv(path_vectors[i]), 0])
+    ];
+
+    union()
+    {
+        for (i = [0 : len(walls) - 1]){
+            multmatrix(walls[i])
+            linear_extrude(vector_magnitude(path_vectors[i]))
+            children();
+
+            // Rounded Corners
+            multmatrix(walls[i] * affine_rotate([-90, 0, 0]))
+            rotate_extrude(angle = 90, convexity = 4)
+            children();
+        }
+    }
+}
+
+function get_fragments_from_r(r) =
+    assert(r > 0)
+    ($fn>0?($fn>=3?$fn:3):ceil(max(min(360/$fa,r*2*PI/$fs),5)));
+
+function wave_function(t, count, range, vertical_offset) =
+    (sin(t * count) * range) + vertical_offset;
+
+module ribbed_circle(outer_radius, inner_radius, ribs) {
+    assert(outer_radius > 0, "outer_radius must be positive");
+    assert(inner_radius > 0, "inner_radius must be positive");
+    assert(ribs > 0, "ribs must be positive");
+    assert(outer_radius > inner_radius, "outer_radius must be larger than inner_radius");
+
+    wave_range = (outer_radius - inner_radius) / 2;
+    wave_vertical_offset = inner_radius + wave_range;
+    fragments=get_fragments_from_r(wave_vertical_offset);
+    degrees_per_fragment = 360/fragments;
+
+    // Circe with a wave wrapped around it
+    wrapped_circle = [ for (i = [0:degrees_per_fragment:360])
+        [sin(i), cos(i)] * wave_function(i, ribs, wave_range, wave_vertical_offset)
+    ];
+
+    polygon(wrapped_circle);
+}
+
+module ribbed_cylinder(outer_radius, inner_radius, height, ribs) {
+    assert(height > 0, "height must be positive");
+    linear_extrude(height)
+    ribbed_circle(
+        outer_radius,
+        inner_radius,
+        ribs
+    );
+}
+
+module make_hole_printable(inner_radius, outer_radius, outer_height, layers=2) {
+    assert(inner_radius > 0, "inner_radius must be positive");
+    assert(outer_radius > 0, "outer_radius must be positive");
+    assert(layers > 0);
+
+    tollerance = 0.01;  // Ensure everything is fully removed.
+    height_adjustment = outer_height - (layers * LAYER_HEIGHT);
+
+    // Needed, since the last layer should not be used for calculations,
+    // unless there is a single layer.
+    calculation_layers = max(layers-1, 1);
+
+    cube_height = LAYER_HEIGHT + 2*tollerance;
+    inner_diameter = 2*(inner_radius+tollerance);
+    outer_diameter = 2*(outer_radius+tollerance);
+    per_layer_difference = (outer_diameter-inner_diameter) / calculation_layers;
+
+    initial_matrix = affine_translate([0, 0, cube_height/2-tollerance + height_adjustment]);
+    cutout_information = [
+        for(i=0; i <= layers; i=i+1)
+        [
+            initial_matrix * affine_translate([0, 0, (i-1)*LAYER_HEIGHT]) *
+                affine_rotate([0, 0, is_even(i) ? 90 : 0]),
+            [outer_diameter-per_layer_difference*(i-1),
+                outer_diameter-per_layer_difference*i,
+                cube_height]
+        ]
+    ];
+
+    difference() {
+        translate([0, 0, layers*cube_height/2 + height_adjustment])
+        cube([outer_diameter+tollerance, outer_diameter+tollerance, layers*cube_height], center = true);
+
+        for (i = [1 : calculation_layers]){
+            data = cutout_information[i];
+            multmatrix(data[0])
+            cube(data[1], center = true);
+        }
+        if(layers > 1) {
+            data = cutout_information[len(cutout_information)-1];
+            multmatrix(data[0])
+            cube([data[1].x, data[1].x, data[1].z], center = true);
         }
     }
 }
 
 /**
- * Creates a linear pattern of children
- */
-module pattern_linear(nx, ny, sx, sy) {
-    sy_actual = sy <= 0 ? sx : sy;
-    translate([-(nx-1)*sx/2, -(ny-1)*sy_actual/2, 0])
-    for (i = [1:ceil(nx)], j = [1:ceil(ny)])
-        translate([(i-1)*sx, (j-1)*sy_actual, 0])
-        children();
-}
+* @brief Refined hole based on Printables @grizzie17's Gridfinity Refined
+* @details Magnet is pushed in from +X direction, and held in by friction.
+*          Small slit on the bottom allows removing the magnet.
+* @see https://www.printables.com/model/413761-gridfinity-refined
+*/
+module refined_hole() {
+    refined_offset = LAYER_HEIGHT * REFINED_HOLE_BOTTOM_LAYERS;
 
-/**
- * Creates a complete gridfinity base
- */
-module gridfinity_base(gx, gy, hole_opts) {
-    // Calculate sizes
-    grid_count = [gx, gy];
-    unit_size = [GRID_UNIT_SIZE, GRID_UNIT_SIZE];
-    center_dist = [GRID_PITCH, GRID_PITCH];
-    gap = center_dist - unit_size;
-    grid_size_mm = [center_dist.x * gx, center_dist.y * gy] - gap;
-    
-    // Top cap
-    translate([0, 0, BASE_PROFILE_MAX_Y - TOLERANCE])
-    linear_extrude(2.2)
-    offset(BASE_CORNER_RADIUS)
-    square([grid_size_mm.x - BASE_CORNER_RADIUS*2, 
-            grid_size_mm.y - BASE_CORNER_RADIUS*2], center = true);
-    
-    // Base units
-    pattern_linear(gx, gy, GRID_PITCH, GRID_PITCH)
-    block_base(hole_opts, 0, unit_size);
-}
+    // Poke through - For removing a magnet using a toothpick
+    ptl = refined_offset + LAYER_HEIGHT; // Additional layer just in case
+    poke_through_height = REFINED_HOLE_HEIGHT + ptl;
+    poke_hole_radius = 2.5;
+    magic_constant = 5.60;
+    poke_hole_center = [-12.53 + magic_constant, 0, -ptl];
 
-// ============================================================================
-// MAIN MODEL
-// ============================================================================
-
-/**
- * Main module that assembles the complete cylinder holder tray
- */
-module cylinder_holder_tray() {
-    clip_w = enable_tray_wall ? _wall_inner_width : _total_width;
-    clip_d = enable_tray_wall ? _wall_inner_depth : _total_depth;
-    
+    translate([0, 0, refined_offset])
     union() {
-        // 1. Gridfinity base (clipped to match wall footprint)
-        intersection() {
-            gridfinity_base(gridx, gridy, _hole_options);
-            
-            translate([0, 0, -1])
-            linear_extrude(BASE_PROFILE_MAX_Y + 10)
-            offset(BASE_CORNER_RADIUS)
-            square([_total_width - BASE_CORNER_RADIUS*2, 
-                    _total_depth - BASE_CORNER_RADIUS*2], center = true);
+        // Magnet hole
+        translate([0, -REFINED_HOLE_RADIUS, 0])
+        cube([11, REFINED_HOLE_RADIUS*2, REFINED_HOLE_HEIGHT]);
+        cylinder(REFINED_HOLE_HEIGHT, r=REFINED_HOLE_RADIUS);
+
+        // Poke hole
+        translate([poke_hole_center.x, -poke_hole_radius/2, poke_hole_center.z])
+        cube([10 - magic_constant, poke_hole_radius, poke_through_height]);
+        translate(poke_hole_center)
+        cylinder(poke_through_height, d=poke_hole_radius);
+    }
+}
+
+/**
+ * @brief Create a cone given a radius and an angle.
+ * @param bottom_radius Radius of the bottom of the cone.
+ * @param angle Angle as measured from the bottom of the cone.
+ * @param max_height Optional maximum height.  Cone will be cut off if higher.
+ */
+module cone(bottom_radius, angle, max_height=0) {
+    assert(bottom_radius > 0);
+    assert(angle > 0 && angle <= 90);
+    assert(max_height >=0);
+
+    height = tan(angle) * bottom_radius;
+    if(max_height == 0 || height < max_height) {
+        // Normal Cone
+        cylinder(h = height, r1 = bottom_radius, r2 = 0, center = false);
+    } else {
+        top_angle = 90 - angle;
+        top_radius = bottom_radius - tan(top_angle) * max_height;
+        cylinder(h = max_height, r1 = bottom_radius, r2 = top_radius, center = false);
+    }
+}
+
+/**
+ * @brief Create a screw hole
+ * @param radius Radius of the hole.
+ * @param height Height of the hole.
+ * @param supportless If the hole is designed to be printed without supports.
+ * @param chamfer_radius If the hole should be chamfered, then how much should be added to radius.  0 means don't chamfer
+ * @param chamfer_angle If the hole should be chamfered, then what angle should it be chamfered at.  Ignored if chamfer_radius is 0.
+ */
+module screw_hole(radius, height, supportless=false, chamfer_radius=0, chamfer_angle = 45) {
+    assert(radius > 0);
+    assert(height > 0);
+    assert(chamfer_radius >= 0);
+
+    union(){
+        difference() {
+            cylinder(h = height, r = radius);
+            if (supportless) {
+                rotate([0, 0, 90])
+                make_hole_printable(0.5, radius, height, 3);
+            }
         }
-        
-        // 2. Holder rims (clipped to fit inside wall)
-        intersection() {
-            holder_array();
-            translate([-clip_w/2, -clip_d/2, -1])
-            cube([clip_w, clip_d, 300]);
-        }
-        
-        // 3. Raised floor (optional)
-        if (enable_raised_floor) {
-            raised_floor();
-        }
-        
-        // 4. Tray wall (optional)
-        if (enable_tray_wall) {
-            tray_wall();
+        if (chamfer_radius > 0) {
+            cone(radius + chamfer_radius, chamfer_angle, height);
         }
     }
 }
 
-// ============================================================================
-// RENDER
-// ============================================================================
+/**
+ * @brief Create an options list used to configure bin holes.
+ * @param refined_hole Use gridfinity refined hole type.  Not compatible with "magnet_hole".
+ * @param magnet_hole Create a hole for a 6mm magnet.
+ * @param screw_hole Create a hole for a M3 screw.
+ * @param crush_ribs If the magnet hole should have crush ribs for a press fit.
+ * @param chamfer Add a chamfer to the magnet/screw hole.
+ * @param supportless If the magnet/screw hole should be printed in such a way that the screw hole does not require supports.
+ */
+function bundle_hole_options(refined_hole=false, magnet_hole=false, screw_hole=false, crush_ribs=false, chamfer=false, supportless=false) =
+    assert(
+        is_bool(refined_hole) &&
+        is_bool(magnet_hole) &&
+        is_bool(screw_hole) &&
+        is_bool(crush_ribs) &&
+        is_bool(chamfer) &&
+        is_bool(supportless))
+    [refined_hole, magnet_hole, screw_hole, crush_ribs, chamfer, supportless];
 
-cylinder_holder_tray();
+/**
+ * @summary Ensures that hole options are valid, and can be used.
+ */
+module assert_hole_options_valid(hole_options) {
+    assert(is_list(hole_options) && len(hole_options) == 6);
+    for(option=hole_options){
+        assert(is_bool(option), "One or more hole options is not a boolean value!");
+    }
+    refined_hole = hole_options[0];
+    magnet_hole = hole_options[1];
+    if(refined_hole) {
+        assert(!magnet_hole, "magnet_hole is not compatible with refined_hole");
+    }
+}
+
+/**
+ * @brief A single magnet/screw hole.  To be cut out of the base.
+ * @details Supports multiple options that can be mixed and matched.
+ * @pram hole_options @see bundle_hole_options
+ * @param o Offset
+ */
+module block_base_hole(hole_options, o=0) {
+    assert_hole_options_valid(hole_options);
+    assert(is_num(o));
+    refined_hole = hole_options[0];
+    magnet_hole = hole_options[1];
+    screw_hole = hole_options[2];
+    crush_ribs = hole_options[3];
+    chamfer = hole_options[4];
+    supportless = hole_options[5];
+
+    screw_radius = SCREW_HOLE_RADIUS - (o/2);
+    magnet_radius = MAGNET_HOLE_RADIUS - (o/2);
+    magnet_inner_radius = MAGNET_HOLE_CRUSH_RIB_INNER_RADIUS - (o/2);
+    screw_depth = h_base-o;
+    supportless_additional_layers = screw_hole ? 2 : 3;
+    magnet_depth = MAGNET_HOLE_DEPTH - o +
+        (supportless ? supportless_additional_layers*LAYER_HEIGHT : 0);
+
+    union() {
+        if(refined_hole) {
+            refined_hole();
+        }
+
+        if(magnet_hole) {
+            difference() {
+                if(crush_ribs) {
+                    ribbed_cylinder(magnet_radius, magnet_inner_radius, magnet_depth, MAGNET_HOLE_CRUSH_RIB_COUNT);
+                } else {
+                    cylinder(h = magnet_depth, r=magnet_radius);
+                }
+
+                if(supportless) {
+                    make_hole_printable(
+                    screw_hole ? screw_radius : 1, magnet_radius, magnet_depth, supportless_additional_layers);
+                }
+            }
+
+            if(chamfer) {
+                 cone(magnet_radius + CHAMFER_ADDITIONAL_RADIUS, CHAMFER_ANGLE, MAGNET_HOLE_DEPTH - o);
+            }
+        }
+        if(screw_hole) {
+            screw_hole(screw_radius, screw_depth, supportless,
+                chamfer ? CHAMFER_ADDITIONAL_RADIUS : 0, CHAMFER_ANGLE);
+        }
+    }
+}
+
+if(!is_undef(test_options)){
+    block_base_hole(test_options);
+}
+
+

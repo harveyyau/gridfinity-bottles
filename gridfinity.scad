@@ -399,7 +399,8 @@ union() {
             // Stacking interface on top of wall
             if (enable_stacking) {
                 // Add positive stacking lip (gridfinity foot profile) on outer edge
-                translate([0, 0, wall_start_z + wall_height])
+                // Place at wall top minus lip height (wall_height already includes lip space)
+                translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
                 stacking_lip_positive(total_width, total_depth);
             }
         }

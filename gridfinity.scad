@@ -354,8 +354,8 @@ union() {
             holder_floor_z = holder_start_z + holder_recess_depth;
             
             // Floor dimensions - fit inside wall if enabled
-            floor_width = enable_tray_wall ? wall_inner_width - 0.5 : total_width - 0.5;
-            floor_depth = enable_tray_wall ? wall_inner_depth - 0.5 : total_depth - 0.5;
+            floor_width = enable_tray_wall ? wall_inner_width : total_width;
+            floor_depth = enable_tray_wall ? wall_inner_depth : total_depth;
             
             difference() {
                 // Solid floor block - starts at holder floor
@@ -381,35 +381,75 @@ union() {
             stacking_lip_total_height = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
             // Wall height: reaches object_height above holder floor, plus stacking lip if enabled
             wall_height = (holder_start_z - h_base) + object_height + stacking_lip_total_height;
-            inner_radius = max(0.1, BASE_OUTSIDE_RADIUS - tray_wall_thickness);
+            corner_radius = BASE_OUTSIDE_RADIUS;
             stacking_clearance = 0.25;
             
+            // Main wall with uniform thickness (use offset for consistent corners)
+            translate([0, 0, wall_start_z])
+            linear_extrude(wall_height)
             difference() {
-                // Main wall - starts from h_base to preserve gridfinity interface
-                translate([0, 0, wall_start_z])
-                linear_extrude(wall_height)
-                difference() {
-                    offset(BASE_OUTSIDE_RADIUS)
-                    square([total_width - BASE_OUTSIDE_RADIUS * 2, total_depth - BASE_OUTSIDE_RADIUS * 2], center = true);
-                    
-                    offset(inner_radius)
-                    square([wall_inner_width - inner_radius * 2, wall_inner_depth - inner_radius * 2], center = true);
-                }
+                offset(corner_radius)
+                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
                 
-                // Cut stacking receiving channel into top
-                if (enable_stacking) {
-                    translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
-                    stacking_receiver_cut(
-                        total_width - tray_wall_thickness * 2 + stacking_clearance * 2,
-                        total_depth - tray_wall_thickness * 2 + stacking_clearance * 2
-                    );
-                }
+                // Inner cutout - offset inward by wall thickness for uniform walls
+                offset(corner_radius - tray_wall_thickness)
+                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+            }
+            
+            // Stacking interface on top of wall
+            if (enable_stacking) {
+                // Add positive stacking lip (gridfinity foot profile) on outer edge
+                translate([0, 0, wall_start_z + wall_height])
+                stacking_lip_positive(total_width, total_depth);
             }
         }
     }
 
 
 // ===== Modules ===== //
+
+/**
+ * Creates the positive stacking lip (gridfinity foot profile) on outer wall edge.
+ * This allows another gridfinity base to stack on top.
+ */
+module stacking_lip_positive(width, depth) {
+    corner_radius = BASE_OUTSIDE_RADIUS;
+    lip_profile = [
+        [0, 0],
+        [0, BASE_PROFILE[3].y],           // Up to full height
+        [BASE_PROFILE[3].x, BASE_PROFILE[3].y],  // Out at top
+        [BASE_PROFILE[2].x, BASE_PROFILE[2].y],  // Down the 45° slope  
+        [BASE_PROFILE[2].x, BASE_PROFILE[1].y],  // Down vertical
+        [BASE_PROFILE[1].x, 0],           // In along 45° slope
+        [0, 0]
+    ];
+    
+    // Sweep the lip profile around the outer edge
+    difference() {
+        // Outer sweep
+        translate([0, 0, 0])
+        linear_extrude(BASE_PROFILE[3].y)
+        offset(corner_radius)
+        square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
+        
+        // Inner cutout (leave only the lip thickness)
+        translate([0, 0, -0.1])
+        linear_extrude(BASE_PROFILE[3].y + 0.2)
+        offset(corner_radius - BASE_PROFILE[3].x)
+        square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
+        
+        // Cut the angled profile into the lip
+        translate([0, 0, -0.1])
+        linear_extrude(BASE_PROFILE[2].y + 0.1)
+        difference() {
+            offset(corner_radius + 1)
+            square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
+            
+            offset(corner_radius - BASE_PROFILE[2].x)
+            square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
+        }
+    }
+}
 
 /**
  * Creates the negative (cutter) for the stacking receiver channel.

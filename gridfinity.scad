@@ -1,83 +1,82 @@
 /*
  * Gridfinity Cylinder Holder Generator
  * 
- * Parametric tray for holding cylindrical objects (bottles, jars, etc.)
- * with full Gridfinity base compatibility.
+ * Creates Gridfinity-compatible trays for holding bottles, jars, 
+ * paint pots, or any cylindrical objects.
+ *
+ * HOW TO USE:
+ * 1. Measure your cylinder's diameter and height
+ * 2. Set cylinder_diameter (add 0.5mm for easy fit)
+ * 3. Set object_height to match your cylinder height
+ * 4. Adjust grid size to fit your needs
+ *
+ * Common sizes: Paint pots ~32mm, Spice jars ~45mm, AA battery ~14.5mm
  */
 
-/* [Hidden] */
-$fa = 4;  // Curve smoothing (lower = smoother, slower)
-$fs = 2;
-
 /* [Grid Size] */
-// Number of gridfinity units along X-axis
+// Gridfinity units wide (1 unit = 42mm)
 gridx = 2; // [1:0.5:8]
-// Number of gridfinity units along Y-axis
-gridy = 1; // [1:0.5:8]
+// Gridfinity units deep (1 unit = 42mm)
+gridy = 2; // [1:0.5:8]
 
-/* [Cylinder Holders] */
-// Diameter of cylinders to hold (add ~0.5mm for clearance)
-cylinder_diameter = 14.1; // [10:1:100]
-// Height of holder rim above holder floor
-holder_rim_height = 13; // [5:1:50]
-// Thickness of rim wall around each holder
-holder_rim_thickness = 1.5; // [0.5:0.25:4]
-// Extra taper at base of rim for strength
-holder_rim_taper = 1; // [0:0.5:3]
-// Depth of holder recess into base (0 = flush with baseplate top)
-holder_recess_depth = 0.9; // [0:0.1:3]
+/* [Cylinder Size] */
+// Diameter of your cylinder + 0.5mm clearance
+cylinder_diameter = 32; // [10:1:100]
+// How tall to make the holder rim (keeps cylinders upright)
+holder_rim_height = 15; // [5:1:50]
 
-/* [Tessellation] */
-// Packing mode: auto finds optimal arrangement
-packing_mode = "auto"; // [auto, grid]
-// Clearance between holders (for fit tolerance)
-holder_clearance = 0.5; // [0:0.25:2]
-// Minimum wall between holders (0 = holders can touch)
-min_wall_between = 0.5; // [0:0.5:5]
-
-/* [Tray Wall] */
-// Add outer wall around the tray
-enable_tray_wall = true;
-// Height of objects to store (wall extends this high above holder floor)
-object_height = 27; // [5:5:150]
+/* [Outer Wall] */
+// Add walls around the tray (for lifting out of drawer)
+enable_tray_wall = false;
+// Height of your cylinders (wall will be this tall)
+object_height = 50; // [5:5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
-// Add stacking interface (adds ~5mm lip above object_height)
-enable_stacking = true;
+// Allow trays to stack (adds ~5mm lip on top)
+enable_stacking = false;
 
 /* [Raised Floor] */
-// Fill empty space between holders with raised floor
-enable_raised_floor = true;
-// Height of raised floor above holder floor
-raised_floor_height = 13; // [1:1:30]
+// Fill gaps between holders with a raised surface
+enable_raised_floor = false;
+// Floor height (set equal to holder_rim_height for flush surface)
+raised_floor_height = 15; // [1:1:30]
 
-/* [Hidden] */
-// number of bases along x-axis
-div_base_x = 1;
-// number of bases along y-axis
-div_base_y = 1;
+/* [Advanced: Holder Details] */
+// Wall thickness around each holder
+holder_rim_thickness = 1.5; // [0.5:0.25:4]
+// Extra width at base of rim (for strength)
+holder_rim_taper = 1; // [0:0.5:3]
+// How deep holders sink into base (usually leave at 0.9)
+holder_recess_depth = 0.9; // [0:0.1:3]
 
+/* [Advanced: Spacing] */
+// How cylinders are arranged: auto picks the best fit
+packing_mode = "auto"; // [auto, grid]
+// Extra gap around each cylinder for fit tolerance
+holder_clearance = 0.5; // [0:0.25:2]
+// Minimum gap between holders
+min_wall_between = 0; // [0:0.5:5]
 
-
-/* [Base Hole Options] */
-// only cut magnet/screw holes at the corners of the bin to save uneccesary print time
+/* [Advanced: Base Holes] */
+// Only add holes at corners (faster print)
 only_corners = false;
-//Use gridfinity refined hole style. Not compatible with magnet_holes!
+// Use refined hole style (smoother, not compatible with magnets)
 refined_holes = false;
-// Base will have holes for 6mm Diameter x 2mm high magnets.
+// Add holes for 6mm x 2mm magnets
 magnet_holes = false;
-// Base will have holes for M3 screws.
+// Add holes for M3 screws
 screw_holes = false;
-// Magnet holes will have crush ribs to hold the magnet.
+// Add crush ribs to grip magnets
 crush_ribs = true;
-// Magnet/Screw holes will have a chamfer to ease insertion.
+// Chamfer holes for easier insertion
 chamfer_holes = true;
+
 /* [Hidden] */
-// Magnet/Screw holes will be printed so supports are not needed.
+$fa = 4;
+$fs = 2;
+div_base_x = 1;
+div_base_y = 1;
 printable_hole_top = false;
-
-/* [Hidden] */
-
 hole_options = bundle_hole_options(refined_holes, magnet_holes, screw_holes, crush_ribs, chamfer_holes, printable_hole_top);
 
 

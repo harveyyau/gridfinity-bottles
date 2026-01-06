@@ -1,21 +1,27 @@
+/*
+ * Gridfinity Cylinder Holder Generator
+ * 
+ * Parametric tray for holding cylindrical objects (bottles, jars, etc.)
+ * with full Gridfinity base compatibility.
+ */
+
 /* [Hidden] */
-// Curve smoothing - optimized for speed
-$fa = 15;
+$fa = 15;  // Curve smoothing (lower = smoother, slower)
 $fs = 2;
 
 /* [Grid Size] */
 // Number of gridfinity units along X-axis
-gridx = 5; // [1:0.5:8]
+gridx = 2; // [1:0.5:8]
 // Number of gridfinity units along Y-axis
-gridy = 2.5; // [1:0.5:8]
+gridy = 2; // [1:0.5:8]
 
 /* [Cylinder Holders] */
 // Diameter of cylinders to hold (add ~0.5mm for clearance)
-cylinder_diameter = 45; // [10:1:100]
+cylinder_diameter = 26; // [10:1:100]
 // Height of holder rim above the base
 holder_rim_height = 15; // [5:1:50]
-// Thickness of rim around each holder
-holder_rim_thickness = 3; // [0.5:0.25:4]
+// Thickness of rim wall around each holder
+holder_rim_thickness = 1.5; // [0.5:0.25:4]
 // Extra taper at base of rim for strength
 holder_rim_taper = 1; // [0:0.5:3]
 // Depth of holder recess into base (0 = flush with baseplate top)
@@ -31,7 +37,7 @@ min_wall_between = 0; // [0:0.5:5]
 
 /* [Tray Wall] */
 // Add outer wall around the tray
-enable_tray_wall = true;
+enable_tray_wall = false;
 // Wall height from base floor (set to match bottle height for full coverage)
 tray_wall_height = 25; // [5:5:150]
 // Wall thickness
@@ -39,9 +45,9 @@ tray_wall_thickness = 2.0; // [1:0.5:4]
 // Add stacking interface (allows trays to stack)
 enable_stacking = false;
 
-/* [Floor] */
+/* [Raised Floor] */
 // Fill empty space between holders with raised floor
-enable_raised_floor = true;
+enable_raised_floor = false;
 // Height of raised floor (from baseplate top)
 raised_floor_height = 8; // [1:1:30]
 

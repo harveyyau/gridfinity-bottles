@@ -401,8 +401,8 @@ union() {
                 if (enable_stacking) {
                     translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
                     stacking_receiver_cut(
-                        total_width - tray_wall_thickness * 2 + stacking_clearance * 2,
-                        total_depth - tray_wall_thickness * 2 + stacking_clearance * 2
+                        wall_inner_width + stacking_clearance * 2,
+                        wall_inner_depth + stacking_clearance * 2
                     );
                 }
             }
@@ -421,86 +421,42 @@ union() {
 // ===== Modules ===== //
 
 /**
- * Creates the positive stacking lip (gridfinity foot profile) on outer wall edge.
- * This allows another gridfinity base to stack on top.
+ * Creates the positive stacking lip using the SAME proven geometry as block_base.
+ * This reuses sweep_rounded + BASE_PROFILE for correct gridfinity compatibility.
  */
 module stacking_lip_positive(width, depth) {
-    corner_radius = BASE_OUTSIDE_RADIUS;
-    lip_profile = [
-        [0, 0],
-        [0, BASE_PROFILE[3].y],           // Up to full height
-        [BASE_PROFILE[3].x, BASE_PROFILE[3].y],  // Out at top
-        [BASE_PROFILE[2].x, BASE_PROFILE[2].y],  // Down the 45° slope  
-        [BASE_PROFILE[2].x, BASE_PROFILE[1].y],  // Down vertical
-        [BASE_PROFILE[1].x, 0],           // In along 45° slope
-        [0, 0]
-    ];
+    // Use the same calculation as block_base for correct profile positioning
+    translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;
+    profile_size_x = width - 2 * BASE_OUTSIDE_RADIUS;
+    profile_size_y = depth - 2 * BASE_OUTSIDE_RADIUS;
     
-    // Sweep the lip profile around the outer edge
-    difference() {
-        // Outer sweep
-        translate([0, 0, 0])
-        linear_extrude(BASE_PROFILE[3].y)
-        offset(corner_radius)
-        square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
-        
-        // Inner cutout (leave only the lip thickness)
-        translate([0, 0, -0.1])
-        linear_extrude(BASE_PROFILE[3].y + 0.2)
-        offset(corner_radius - BASE_PROFILE[3].x)
-        square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
-        
-        // Cut the angled profile into the lip
-        translate([0, 0, -0.1])
-        linear_extrude(BASE_PROFILE[2].y + 0.1)
-        difference() {
-            offset(corner_radius + 1)
-            square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
-            
-            offset(corner_radius - BASE_PROFILE[2].x)
-            square([width - corner_radius * 2, depth - corner_radius * 2], center = true);
-        }
+    // Only create if there's room for the profile
+    if (profile_size_x > 0 && profile_size_y > 0) {
+        sweep_rounded(profile_size_x, profile_size_y)
+        translate([translation_x, 0, 0])
+        polygon(BASE_PROFILE);
     }
 }
 
 /**
  * Creates the negative (cutter) for the stacking receiver channel.
- * Simple stepped ledge that receives the BASE_PROFILE of a stacked tray.
+ * Uses the same BASE_PROFILE but slightly larger for clearance.
  */
 module stacking_receiver_cut(inner_width, inner_depth) {
-    // Simple approach: cut a stepped channel into the top of the wall
-    // Step 1: shallow ledge for the base profile to rest on
-    // Step 2: deeper channel for the angled portion
+    clearance = 0.3;  // Clearance for the mating profile
     
-    ledge_depth = BASE_PROFILE[3].x + 0.5;  // ~3.5mm inward
-    ledge_height = BASEPLATE_LIP_HEIGHT + 1;
-    inner_step_depth = BASE_PROFILE[2].x + 0.3;  // ~1.1mm for the vertical part
-    inner_step_height = BASE_PROFILE[2].y;  // ~2.6mm
+    // Use same calculation as block_base but with clearance added
+    translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;
+    profile_size_x = inner_width - 2 * BASE_OUTSIDE_RADIUS;
+    profile_size_y = inner_depth - 2 * BASE_OUTSIDE_RADIUS;
     
-    inner_radius = max(0.1, BASE_OUTSIDE_RADIUS - ledge_depth);
-    step_radius = max(0.1, BASE_OUTSIDE_RADIUS - inner_step_depth);
+    // Enlarged profile for clearance
+    enlarged_profile = [for (p = BASE_PROFILE) [p.x + clearance, p.y + clearance]];
     
-    // Outer ledge cut
-    linear_extrude(ledge_height)
-    difference() {
-        offset(BASE_OUTSIDE_RADIUS)
-        square([inner_width - BASE_OUTSIDE_RADIUS * 2, inner_depth - BASE_OUTSIDE_RADIUS * 2], center = true);
-        
-        offset(inner_radius)
-        square([inner_width - ledge_depth * 2 - inner_radius * 2, 
-                inner_depth - ledge_depth * 2 - inner_radius * 2], center = true);
-    }
-    
-    // Inner step cut (deeper, for the base profile's vertical portion)
-    linear_extrude(inner_step_height)
-    difference() {
-        offset(inner_radius + 0.1)
-        square([inner_width - ledge_depth * 2 - inner_radius * 2, 
-                inner_depth - ledge_depth * 2 - inner_radius * 2], center = true);
-        
-        offset(step_radius)
-        square([inner_width - ledge_depth * 2 - inner_step_depth * 2 - step_radius * 2,
-                inner_depth - ledge_depth * 2 - inner_step_depth * 2 - step_radius * 2], center = true);
+    if (profile_size_x > 0 && profile_size_y > 0) {
+        sweep_rounded(profile_size_x, profile_size_y)
+        translate([translation_x - clearance, 0, 0])
+        polygon(enlarged_profile);
     }
 }
 

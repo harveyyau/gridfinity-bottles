@@ -6,20 +6,20 @@
  */
 
 /* [Hidden] */
-$fa = 15;  // Curve smoothing (lower = smoother, slower)
+$fa = 4;  // Curve smoothing (lower = smoother, slower)
 $fs = 2;
 
 /* [Grid Size] */
 // Number of gridfinity units along X-axis
 gridx = 2; // [1:0.5:8]
 // Number of gridfinity units along Y-axis
-gridy = 2; // [1:0.5:8]
+gridy = 1; // [1:0.5:8]
 
 /* [Cylinder Holders] */
 // Diameter of cylinders to hold (add ~0.5mm for clearance)
-cylinder_diameter = 26; // [10:1:100]
-// Height of holder rim above the base
-holder_rim_height = 15; // [5:1:50]
+cylinder_diameter = 14.1; // [10:1:100]
+// Height of holder rim above holder floor
+holder_rim_height = 13; // [5:1:50]
 // Thickness of rim wall around each holder
 holder_rim_thickness = 1.5; // [0.5:0.25:4]
 // Extra taper at base of rim for strength
@@ -33,23 +33,23 @@ packing_mode = "auto"; // [auto, grid]
 // Clearance between holders (for fit tolerance)
 holder_clearance = 0.5; // [0:0.25:2]
 // Minimum wall between holders (0 = holders can touch)
-min_wall_between = 0; // [0:0.5:5]
+min_wall_between = 0.5; // [0:0.5:5]
 
 /* [Tray Wall] */
 // Add outer wall around the tray
-enable_tray_wall = false;
-// Wall height from base floor (set to match bottle height for full coverage)
-tray_wall_height = 25; // [5:5:150]
+enable_tray_wall = true;
+// Height of objects to store (wall extends this high above holder floor)
+object_height = 27; // [5:5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
-// Add stacking interface (allows trays to stack)
-enable_stacking = false;
+// Add stacking interface (adds ~5mm lip above object_height)
+enable_stacking = true;
 
 /* [Raised Floor] */
 // Fill empty space between holders with raised floor
-enable_raised_floor = false;
-// Height of raised floor (from baseplate top)
-raised_floor_height = 8; // [1:1:30]
+enable_raised_floor = true;
+// Height of raised floor above holder floor
+raised_floor_height = 13; // [1:1:30]
 
 /* [Hidden] */
 // number of bases along x-axis
@@ -306,7 +306,6 @@ start_offset_x = -(total_width / 2) + usable_margin;
 start_offset_y = -(total_depth / 2) + usable_margin;
 
 // Wall dimensions
-wall_total_height = holder_start_z + holder_recess_depth + holder_rim_height + tray_wall_height;
 wall_inner_width = total_width - tray_wall_thickness * 2;
 wall_inner_depth = total_depth - tray_wall_thickness * 2;
 
@@ -350,33 +349,39 @@ union() {
     
         // Raised floor to fill empty space between bottles
         if (enable_raised_floor) {
-            floor_top = holder_start_z + min(raised_floor_height, holder_rim_height - 1);
+            // Floor height from holder floor (capped to rim height)
+            floor_height = min(raised_floor_height, holder_rim_height);
+            // Actual holder floor Z (where objects sit, after recess)
+            holder_floor_z = holder_start_z + holder_recess_depth;
             
             // Floor dimensions - fit inside wall if enabled
             floor_width = enable_tray_wall ? wall_inner_width - 0.5 : total_width - 0.5;
             floor_depth = enable_tray_wall ? wall_inner_depth - 0.5 : total_depth - 0.5;
             
             difference() {
-                // Solid floor block
-                translate([0, 0, holder_start_z + floor_top / 2])
-                cube([floor_width, floor_depth, floor_top], center = true);
+                // Solid floor block - starts at holder floor
+                translate([0, 0, holder_floor_z + floor_height / 2])
+                cube([floor_width, floor_depth, floor_height], center = true);
                 
-                // Cut out bottle holes
-                translate([start_offset_x, start_offset_y, holder_start_z - 0.1])
+                // Cut out bottle holes - tapered to match holder rim exactly
+                translate([start_offset_x, start_offset_y, holder_floor_z - 0.1])
                 for (pos = positions)
-                    translate([pos[0], pos[1], 0])
-                    cylinder(floor_top + 0.2, 
-                             (cylinder_diameter / 2) + holder_rim_thickness + 0.2, 
-                             (cylinder_diameter / 2) + holder_rim_thickness + 0.2);
+                    translate([pos[0], pos[1], 0]) {
+                    // Match holder taper: bottom radius includes taper, top doesn't
+                    bottom_r = (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper;
+                    top_r = (cylinder_diameter / 2) + holder_rim_thickness;
+                    cylinder(floor_height + 0.2, bottom_r, top_r);
+                }
             }
         }
         
         // Tray wall for lifting/stacking
         if (enable_tray_wall) {
-            // Wall starts at h_base (top of gridfinity profile) so base still fits into grid
+            // Wall starts at h_base (gridfinity top) to preserve base interface
             wall_start_z = h_base;
             stacking_lip_total_height = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
-            wall_height = tray_wall_height + stacking_lip_total_height;
+            // Wall height: reaches object_height above holder floor, plus stacking lip if enabled
+            wall_height = (holder_start_z - h_base) + object_height + stacking_lip_total_height;
             inner_radius = max(0.1, BASE_OUTSIDE_RADIUS - tray_wall_thickness);
             stacking_clearance = 0.25;
             

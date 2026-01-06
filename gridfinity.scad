@@ -385,15 +385,26 @@ union() {
             stacking_clearance = 0.25;
             
             // Main wall with uniform thickness (use offset for consistent corners)
-            translate([0, 0, wall_start_z])
-            linear_extrude(wall_height)
             difference() {
-                offset(corner_radius)
-                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                translate([0, 0, wall_start_z])
+                linear_extrude(wall_height)
+                difference() {
+                    offset(corner_radius)
+                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                    
+                    // Inner cutout - offset inward by wall thickness for uniform walls
+                    offset(corner_radius - tray_wall_thickness)
+                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                }
                 
-                // Inner cutout - offset inward by wall thickness for uniform walls
-                offset(corner_radius - tray_wall_thickness)
-                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                // Cut receiving channel for stacking (chamfer for gridfinity feet to fit)
+                if (enable_stacking) {
+                    translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
+                    stacking_receiver_cut(
+                        total_width - tray_wall_thickness * 2 + stacking_clearance * 2,
+                        total_depth - tray_wall_thickness * 2 + stacking_clearance * 2
+                    );
+                }
             }
             
             // Stacking interface on top of wall

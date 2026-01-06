@@ -400,7 +400,7 @@ union() {
                 
                 // Cut receiving channel for stacking (chamfer for gridfinity feet to fit)
                 if (enable_stacking) {
-                    translate([0, 0, wall_start_z + wall_height])
+                    translate([0, 0, wall_start_z + wall_height - 1])
                     stacking_receiver_cut(
                         wall_inner_width + stacking_clearance * 2,
                         wall_inner_depth + stacking_clearance * 2
@@ -411,8 +411,8 @@ union() {
             // Stacking interface on top of wall
             if (enable_stacking) {
                 // Add positive stacking lip (gridfinity foot profile) on outer edge
-                // Place at wall top (wall_height does NOT include lip - lip adds its own height)
-                translate([0, 0, wall_start_z + wall_height])
+                // Overlap with wall top so they merge (lip profile is ~5mm tall)
+                translate([0, 0, wall_start_z + wall_height - 1])
                 stacking_lip_positive(total_width, total_depth);
             }
         }

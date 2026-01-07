@@ -34,6 +34,8 @@ object_height = 50; // [5:5:150]
 tray_wall_thickness = 2.0; // [1:0.5:4]
 // Allow trays to stack (adds ~5mm lip on top)
 enable_stacking = false;
+// Extra clearance for stacking receiver (bigger = looser fit)
+stacking_clearance = 0.25; // [0:0.05:0.6]
 
 /* [Raised Floor] */
 // Fill gaps between holders with a raised surface
@@ -385,7 +387,6 @@ union() {
             wall_base_height = (holder_start_z - h_base) + object_height;
             wall_total_height = wall_base_height + receiver_depth;
             corner_radius = BASE_OUTSIDE_RADIUS;
-            stacking_clearance = 0.25;
             
             // Main wall with uniform thickness (use offset for consistent corners)
             difference() {
@@ -469,12 +470,19 @@ module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h
     // Uses BASEPLATE_LIP points (two chamfers) and clamps inset to wall thickness.
     max_inset = max(0, wall_thick - 0.2);
     
-    // Profile points: x = radial expansion into wall, y = depth down from top.
-    p0 = [0, 0];
-    p1 = [min(BASEPLATE_LIP[1].x + clearance, max_inset), BASEPLATE_LIP[1].y];
-    p2 = [min(BASEPLATE_LIP[2].x + clearance, max_inset), BASEPLATE_LIP[2].y];
-    p3 = [min(BASEPLATE_LIP[3].x + clearance, max_inset), BASEPLATE_LIP[3].y];
-    p4 = [p3.x, band_h];
+    // We want the chamfer to START at the very top surface of the band and taper DOWN.
+    // BASEPLATE_LIP is defined from the bottom up, so convert to depth-from-top:
+    // depth_from_top = band_h - y
+    p0x = 0;
+    p1x = min(BASEPLATE_LIP[1].x + clearance, max_inset);
+    p2x = min(BASEPLATE_LIP[2].x + clearance, max_inset);
+    p3x = min(BASEPLATE_LIP[3].x + clearance, max_inset);
+    // Top extension at full inset
+    q0 = [p3x, 0];                      // top surface
+    q1 = [p3x, band_h - BASEPLATE_LIP[3].y];
+    q2 = [p2x, band_h - BASEPLATE_LIP[2].y];
+    q3 = [p1x, band_h - BASEPLATE_LIP[1].y];
+    q4 = [p0x, band_h - BASEPLATE_LIP[0].y]; // bottom of band
     
     module _hull_slice(d0, x0, d1, x1) {
         z0 = band_h - d0;
@@ -495,10 +503,10 @@ module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h
         wall_ring_2d(outer_w, outer_d, corner_r, wall_thick);
         
         union() {
-            _hull_slice(p0.y, p0.x, p1.y, p1.x);
-            _hull_slice(p1.y, p1.x, p2.y, p2.x);
-            _hull_slice(p2.y, p2.x, p3.y, p3.x);
-            _hull_slice(p3.y, p3.x, p4.y, p4.x);
+            _hull_slice(q0.y, q0.x, q1.y, q1.x);
+            _hull_slice(q1.y, q1.x, q2.y, q2.x);
+            _hull_slice(q2.y, q2.x, q3.y, q3.x);
+            _hull_slice(q3.y, q3.x, q4.y, q4.x);
         }
     }
 }

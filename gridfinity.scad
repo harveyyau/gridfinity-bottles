@@ -202,6 +202,25 @@ function generate_valid_positions() =
     )
     len(centered) > 0 ? centered : [[usable_width/2, usable_depth/2]];
 
+// ===== Option C helpers (readability) =====
+// Keep geometry identical, but reduce repeated formulas/loops.
+
+function bottle_positions() = generate_valid_positions();
+
+function holder_h_total() = holder_recess_depth + holder_rim_height;
+function holder_outer_r_top() = (cylinder_diameter / 2) + holder_rim_thickness;
+function holder_outer_r_bottom() = holder_outer_r_top() + holder_rim_taper;
+function holder_hole_r() = cylinder_diameter / 2;
+function holder_floor_z() = holder_start_z + holder_recess_depth;
+
+// Iterate centered XY positions; optionally add a base XY offset and a Z offset.
+module for_each_position(pos_list = positions, base_xy = [start_offset_x, start_offset_y], z = 0) {
+    translate([base_xy[0], base_xy[1], z])
+    for (pos = pos_list)
+        translate([pos[0], pos[1], 0])
+        children();
+}
+
 
 
 // STANDARD
@@ -300,7 +319,7 @@ holder_start_z = bp_h_bot - holder_recess_depth;
 
 
 // Generate validated and centered bottle positions
-positions = generate_valid_positions();
+positions = bottle_positions();
 
 // Starting position offset (positions are already centered within usable area)
 start_offset_x = -(total_width / 2) + usable_margin;
@@ -333,20 +352,12 @@ module build_holders() {
     intersection() {
         difference() {
             // Holder rim solids - tapered outer
-            translate([start_offset_x, start_offset_y, holder_start_z])
-            for (pos = positions)
-                translate([pos[0], pos[1], 0])
-                cylinder(holder_recess_depth + holder_rim_height, 
-                         (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper, 
-                         (cylinder_diameter / 2) + holder_rim_thickness);
+            for_each_position(z = holder_start_z)
+                cylinder(holder_h_total(), holder_outer_r_bottom(), holder_outer_r_top());
             
             // Cut straight holes through holders
-            translate([start_offset_x, start_offset_y, holder_start_z - 0.1])
-            for (pos = positions)
-                translate([pos[0], pos[1], 0])
-                cylinder(holder_recess_depth + holder_rim_height + 0.2, 
-                         cylinder_diameter / 2, 
-                         cylinder_diameter / 2);
+            for_each_position(z = holder_start_z - 0.1)
+                cylinder(holder_h_total() + 0.2, holder_hole_r(), holder_hole_r());
         }
         // Clip holder rims to fit inside wall
         translate([-clip_width/2, -clip_depth/2, -1])
@@ -360,7 +371,7 @@ module build_raised_floor() {
         // Floor height from holder floor (capped to rim height)
         floor_height = min(raised_floor_height, holder_rim_height);
         // Actual holder floor Z (where objects sit, after recess)
-        holder_floor_z = holder_start_z + holder_recess_depth;
+        holder_floor_z = holder_floor_z();
         
         // Floor dimensions - fit inside wall if enabled
         floor_width = enable_tray_wall ? wall_inner_width : total_width;
@@ -372,14 +383,8 @@ module build_raised_floor() {
             cube([floor_width, floor_depth, floor_height], center = true);
             
             // Cut out bottle holes - tapered to match holder rim exactly
-            translate([start_offset_x, start_offset_y, holder_floor_z - 0.1])
-            for (pos = positions)
-                translate([pos[0], pos[1], 0]) {
-                // Match holder taper: bottom radius includes taper, top doesn't
-                bottom_r = (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper;
-                top_r = (cylinder_diameter / 2) + holder_rim_thickness;
-                cylinder(floor_height + 0.2, bottom_r, top_r);
-            }
+            for_each_position(base_xy = [start_offset_x, start_offset_y], z = holder_floor_z - 0.1)
+                cylinder(floor_height + 0.2, holder_outer_r_bottom(), holder_outer_r_top());
         }
     }
 }

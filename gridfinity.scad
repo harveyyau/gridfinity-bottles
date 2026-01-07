@@ -32,10 +32,6 @@ enable_tray_wall = false;
 object_height = 50; // [5:5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
-// Allow trays to stack (adds a ~5mm receiver band + extra headroom so a stacked bin can insert fully)
-enable_stacking = false;
-// Extra clearance for stacking receiver (TOTAL clearance; code applies half per side)
-stacking_clearance = 0.25; // [0:0.05:0.6]
 
 /* [Raised Floor] */
 // Fill gaps between holders with a raised surface
@@ -334,7 +330,7 @@ wall_inner_depth = total_depth - tray_wall_thickness * 2;
 
 module build_gridfinity_base() {
     // Gridfinity base - clipped to match wall footprint for fractional grids
-    intersection() {
+intersection() {
         gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options);
         // Clip to wall outer boundary
         translate([0, 0, -1])
@@ -389,56 +385,26 @@ module build_raised_floor() {
     }
 }
 
-module build_tray_wall_and_stacking_receiver() {
+module build_tray_wall() {
     if (enable_tray_wall) {
         // Wall starts at h_base (gridfinity top) to preserve base interface
         wall_start_z = h_base;
-        // Receiver band height: make bins stackable by adding a lip band on top.
-        // Use the standard gridfinity lip height (5mm) so the top bin can seat fully.
-        receiver_depth = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
         // Base wall height to reach object height from holder floor
         // (holder_start_z is the top of the recess; holder floor is holder_start_z + holder_recess_depth)
         holder_floor_z_local = holder_start_z + holder_recess_depth;
-        // When stacking, the bin above inserts downward by roughly the Gridfinity base profile height.
-        // Add that headroom so `object_height` still represents usable height under a stacked bin.
-        stacking_insert_depth = enable_stacking ? BASE_PROFILE_MAX.y : 0;
-        wall_base_height = (holder_floor_z_local - h_base) + object_height + stacking_insert_depth;
-        wall_total_height = wall_base_height + receiver_depth;
+        wall_height = (holder_floor_z_local - h_base) + object_height;
         corner_radius = BASE_OUTSIDE_RADIUS;
         
-        // Receiver pocket is cut from the inner face of the wall.
-        // For thin walls, we DO NOT add an internal shelf/overhang (hard to print).
-        // Instead we reduce engagement by clamping the profile to the available wall thickness.
-        receiver_wall_thickness = tray_wall_thickness;
-        
         // Main wall with uniform thickness (use offset for consistent corners)
+        translate([0, 0, wall_start_z])
+        linear_extrude(wall_height)
         difference() {
-            translate([0, 0, wall_start_z])
-            linear_extrude(wall_total_height)
-            difference() {
-                offset(corner_radius)
-                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
-                
-                // Inner cutout - offset inward by wall thickness for uniform walls
-                offset(corner_radius - tray_wall_thickness)
-                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
-            }
+            offset(corner_radius)
+            square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
             
-                // Cut receiving channel for stacking (receiver pocket on the INNER top edge).
-                // Note: the outside wall remains; stacking works via this inner recess.
-            if (enable_stacking && receiver_depth > 0) {
-                // Carve the receiver into ONLY the added top band, on the INNER face of the wall.
-                // Uses BASE_PROFILE (two 45° chamfers) and clamps to available wall thickness.
-                translate([0, 0, wall_start_z + wall_base_height])
-                stacking_receiver_cut_band(
-                    total_width,
-                    total_depth,
-                    corner_radius,
-                    receiver_wall_thickness,
-                    receiver_depth,
-                    stacking_clearance
-                );
-            }
+            // Inner cutout - offset inward by wall thickness for uniform walls
+            offset(corner_radius - tray_wall_thickness)
+            square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
         }
     }
 }
@@ -448,7 +414,7 @@ module main() {
         build_gridfinity_base();
         build_holders();
         build_raised_floor();
-        build_tray_wall_and_stacking_receiver();
+        build_tray_wall();
     }
 }
 
@@ -457,76 +423,7 @@ module main() {
 
 // (Removed unused legacy/reference stacking modules to reduce confusion.)
 
-/**
- * Creates a chamfered receiver channel confined to the top of the wall.
- * Footprint is inset from the wall interior to avoid intersecting rims/floor.
- */
-module wall_ring_2d(outer_w, outer_d, corner_r, wall_thick) {
-    // 2D ring matching tray wall cross-section (outer - inner), centered
-    difference() {
-        offset(corner_r)
-        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
-        
-        offset(corner_r - wall_thick)
-        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
-    }
-}
-
-module wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, expand=0) {
-    // Inner face of the wall, expanded outward into the wall thickness by `expand`
-    offset(max(0, corner_r - wall_thick + expand))
-    square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
-}
-
-module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h, clearance=0.25) {
-    // Receiver pocket carved into inner top edge of the wall ring within the top band.
-    // Uses BASE_PROFILE (bin base profile: two 45° chamfers + vertical) and clamps inset to wall thickness.
-    // NOTE: `clearance` is TOTAL clearance; apply half per side.
-    clearance_side = clearance / 2;
-    max_inset = max(0, wall_thick - 0.2);
-    
-    // Chamfer should match the BIN BASE angles (45°) and be WIDEST at the very top.
-    // BASE_PROFILE is defined bottom-up, so convert to depth-from-top:
-    // depth_from_top = band_h - y
-    p0x = 0;
-    p1x = min(BASE_PROFILE[1].x + clearance_side, max_inset);
-    p2x = min(BASE_PROFILE[2].x + clearance_side, max_inset);
-    p3x = min(BASE_PROFILE_MAX.x + clearance_side, max_inset);
-
-    // Build a depth-from-top profile (top -> bottom):
-    // At the top surface we want full inset (p3x), then step down through the lip profile.
-    q0 = [p3x, 0];                                 // top surface
-    q1 = [p3x, band_h - BASE_PROFILE_MAX.y];        // short vertical at max inset (band_h - 4.75mm)
-    q2 = [p2x, band_h - BASE_PROFILE[2].y];         // 45° chamfer
-    q3 = [p1x, band_h - BASE_PROFILE[1].y];         // vertical
-    q4 = [p0x, band_h - BASE_PROFILE[0].y];         // bottom of band (typically depth=band_h)
-    
-    module _hull_slice(d0, x0, d1, x1) {
-        z0 = band_h - d0;
-        z1 = band_h - d1;
-        hull() {
-            translate([0, 0, z0])
-            linear_extrude(0.05)
-            wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, x0);
-            
-            translate([0, 0, z1])
-            linear_extrude(0.05)
-            wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, x1);
-        }
-    }
-    
-    intersection() {
-        linear_extrude(band_h + 0.1)
-        wall_ring_2d(outer_w, outer_d, corner_r, wall_thick);
-        
-        union() {
-            _hull_slice(q0.y, q0.x, q1.y, q1.x);
-            _hull_slice(q1.y, q1.x, q2.y, q2.x);
-            _hull_slice(q2.y, q2.x, q3.y, q3.x);
-            _hull_slice(q3.y, q3.x, q4.y, q4.x);
-        }
-    }
-}
+// (Stacking receiver removed — plain walls only.)
 
 // (Removed unused legacy/reference stacking receiver cutter.)
 

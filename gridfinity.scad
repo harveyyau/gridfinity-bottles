@@ -378,8 +378,8 @@ union() {
         if (enable_tray_wall) {
             // Wall starts at h_base (gridfinity top) to preserve base interface
             wall_start_z = h_base;
-            // Use actual profile height for receiver depth (BASE_PROFILE_MAX.y ≈ 4.75mm)
-            receiver_depth = enable_stacking ? BASE_PROFILE_MAX.y + 0.5 : 0;
+            // Receiver adds ~3mm depth for the stepped channel
+            receiver_depth = enable_stacking ? 3 : 0;
             // Wall height: reaches object_height above holder floor, plus space for receiver
             wall_height = (holder_start_z - h_base) + object_height + receiver_depth;
             corner_radius = BASE_OUTSIDE_RADIUS;
@@ -400,12 +400,9 @@ union() {
                 
                 // Cut receiving channel for stacking (pocket for gridfinity feet to fit into)
                 if (enable_stacking) {
-                    // Cut from the top of the wall, going down
-                    translate([0, 0, wall_start_z + wall_height - receiver_depth])
-                    stacking_receiver_cut(
-                        total_width + stacking_clearance * 2,
-                        total_depth + stacking_clearance * 2
-                    );
+                    // Cut from top of wall going down
+                    translate([0, 0, wall_start_z + wall_height])
+                    stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius);
                 }
                 
             }
@@ -437,24 +434,39 @@ module stacking_lip_positive(width, depth) {
 }
 
 /**
- * Creates the negative (cutter) for the stacking receiver channel.
- * Uses the same BASE_PROFILE but slightly larger for clearance.
+ * Creates a simple chamfered receiver channel for stacking.
+ * Uses basic geometry to avoid sweep_rounded edge artifacts.
+ * The channel is a stepped pocket that matches the gridfinity base profile.
  */
-module stacking_receiver_cut(inner_width, inner_depth) {
-    clearance = 0.3;  // Clearance for the mating profile
+module stacking_receiver_cut(outer_w, outer_d, wall_thick, corner_r) {
+    clearance = 0.3;
+    // Gridfinity base profile steps: ~0.7mm at 45°, then ~1.8mm at 45°, then ~2.15mm vertical
+    // Simplified to two steps for reliability
+    step1_depth = 0.8;   // First chamfer depth
+    step1_inset = 0.8;   // How far in from wall top
+    step2_depth = 2.0;   // Second chamfer depth  
+    step2_inset = 2.6;   // Total inset at bottom
     
-    // Use same calculation as block_base but with clearance added
-    translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;
-    profile_size_x = inner_width - 2 * BASE_OUTSIDE_RADIUS;
-    profile_size_y = inner_depth - 2 * BASE_OUTSIDE_RADIUS;
+    // Step 1: Small chamfer at top
+    translate([0, 0, -step1_depth])
+    linear_extrude(step1_depth + 0.1)
+    difference() {
+        offset(corner_r)
+        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+        
+        offset(corner_r - wall_thick + step1_inset + clearance)
+        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+    }
     
-    // Enlarged profile for clearance
-    enlarged_profile = [for (p = BASE_PROFILE) [p.x + clearance, p.y + clearance]];
-    
-    if (profile_size_x > 0 && profile_size_y > 0) {
-        sweep_rounded(profile_size_x, profile_size_y)
-        translate([translation_x - clearance, 0, 0])
-        polygon(enlarged_profile);
+    // Step 2: Larger chamfer below
+    translate([0, 0, -step1_depth - step2_depth])
+    linear_extrude(step2_depth + 0.1)
+    difference() {
+        offset(corner_r)
+        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+        
+        offset(corner_r - wall_thick + step2_inset + clearance)
+        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
     }
 }
 

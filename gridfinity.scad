@@ -379,9 +379,8 @@ union() {
             // Wall starts at h_base (gridfinity top) to preserve base interface
             wall_start_z = h_base;
             stacking_lip_total_height = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
-            // Wall height: reaches object_height above holder floor
-            // NOTE: Do NOT include stacking_lip_total_height here - the lip is added separately
-            wall_height = (holder_start_z - h_base) + object_height;
+            // Wall height: reaches object_height above holder floor, plus space for receiver
+            wall_height = (holder_start_z - h_base) + object_height + stacking_lip_total_height;
             corner_radius = BASE_OUTSIDE_RADIUS;
             stacking_clearance = 0.25;
             
@@ -398,9 +397,10 @@ union() {
                     square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
                 }
                 
-                // Cut receiving channel for stacking (chamfer for gridfinity feet to fit)
+                // Cut receiving channel for stacking (pocket for gridfinity feet to fit into)
                 if (enable_stacking) {
-                    translate([0, 0, wall_start_z + wall_height - 1])
+                    // Cut from the top of the wall, going down
+                    translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
                     stacking_receiver_cut(
                         wall_inner_width + stacking_clearance * 2,
                         wall_inner_depth + stacking_clearance * 2
@@ -408,13 +408,8 @@ union() {
                 }
             }
             
-            // Stacking interface on top of wall
-            if (enable_stacking) {
-                // Add positive stacking lip (gridfinity foot profile) on outer edge
-                // Overlap with wall top so they merge (lip profile is ~5mm tall)
-                translate([0, 0, wall_start_z + wall_height - 1])
-                stacking_lip_positive(total_width, total_depth);
-            }
+            // NOTE: stacking_lip_positive removed - we only need the receiver cut
+            // The receiver is cut into the wall above (in the difference block)
         }
     }
 

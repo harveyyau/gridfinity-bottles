@@ -409,7 +409,8 @@ module build_tray_wall_and_stacking_receiver() {
                 square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
             }
             
-            // Cut receiving channel for stacking (receiver pocket on the INNER top edge)
+                // Cut receiving channel for stacking (receiver pocket on the INNER top edge).
+                // Note: the outside wall remains; stacking works via this inner recess.
             if (enable_stacking && receiver_depth > 0) {
                 // Carve the receiver into ONLY the added top band, on the INNER face of the wall.
                 // Uses BASEPLATE_LIP (two chamfers) and clamps to wall thickness so it works for any wall thickness.
@@ -443,6 +444,10 @@ module main() {
  * Creates the positive stacking lip using the SAME proven geometry as block_base.
  * This reuses sweep_rounded + BASE_PROFILE for correct gridfinity compatibility.
  */
+// --- Legacy / reference modules (not used in the final model) ---
+// Kept for readers who want to understand Gridfinity geometry building blocks.
+// (MakerWorld users: you can ignore everything in this section.)
+
 module stacking_lip_positive(width, depth) {
     // Use the same calculation as block_base for correct profile positioning
     translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;

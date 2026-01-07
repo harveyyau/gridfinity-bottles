@@ -440,27 +440,7 @@ module main() {
 
 // ===== Modules ===== //
 
-/**
- * Creates the positive stacking lip using the SAME proven geometry as block_base.
- * This reuses sweep_rounded + BASE_PROFILE for correct gridfinity compatibility.
- */
-// --- Legacy / reference modules (not used in the final model) ---
-// Kept for readers who want to understand Gridfinity geometry building blocks.
-// (MakerWorld users: you can ignore everything in this section.)
-
-module stacking_lip_positive(width, depth) {
-    // Use the same calculation as block_base for correct profile positioning
-    translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;
-    profile_size_x = width - 2 * BASE_OUTSIDE_RADIUS;
-    profile_size_y = depth - 2 * BASE_OUTSIDE_RADIUS;
-    
-    // Only create if there's room for the profile
-    if (profile_size_x > 0 && profile_size_y > 0) {
-        sweep_rounded(profile_size_x, profile_size_y)
-        translate([translation_x, 0, 0])
-        polygon(BASE_PROFILE);
-    }
-}
+// (Removed unused legacy/reference stacking modules to reduce confusion.)
 
 /**
  * Creates a chamfered receiver channel confined to the top of the wall.
@@ -529,21 +509,7 @@ module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h
     }
 }
 
-module stacking_receiver_cut(outer_w, outer_d, clearance=0.25) {
-    // Gridfinity base profile cutter (two chamfers), sized to footprint.
-    // IMPORTANT: do NOT flip vertically; we subtract the normal base shape from the added top band.
-    translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;
-    profile_size_x = outer_w - 2 * BASE_OUTSIDE_RADIUS;
-    profile_size_y = outer_d - 2 * BASE_OUTSIDE_RADIUS;
-    // Expand only in X (radial) for clearance; Y is height
-    receiver_profile = [for (p = BASE_PROFILE) [p.x + clearance, p.y]];
-    
-    if (profile_size_x > 0 && profile_size_y > 0) {
-        sweep_rounded(profile_size_x, profile_size_y)
-        translate([translation_x - clearance, 0, 0])
-        polygon(receiver_profile);
-    }
-}
+// (Removed unused legacy/reference stacking receiver cutter.)
 
 module gridfinityBase(gx, gy, length, dx, dy, hole_options=bundle_hole_options(), off=0, final_cut=true, only_corners=false) {
     assert(

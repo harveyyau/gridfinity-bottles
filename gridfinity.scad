@@ -397,7 +397,9 @@ module build_tray_wall_and_stacking_receiver() {
         // Use the standard gridfinity lip height (5mm) so the top bin can seat fully.
         receiver_depth = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
         // Base wall height to reach object height from holder floor
-        wall_base_height = (holder_start_z - h_base) + object_height;
+        // (holder_start_z is the top of the recess; holder floor is holder_start_z + holder_recess_depth)
+        holder_floor_z_local = holder_start_z + holder_recess_depth;
+        wall_base_height = (holder_floor_z_local - h_base) + object_height;
         wall_total_height = wall_base_height + receiver_depth;
         corner_radius = BASE_OUTSIDE_RADIUS;
         

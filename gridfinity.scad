@@ -32,7 +32,7 @@ enable_tray_wall = false;
 object_height = 50; // [5:5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
-// Allow trays to stack (adds ~5mm lip on top)
+// Allow trays to stack (adds a ~5mm receiver band + extra headroom so a stacked bin can insert fully)
 enable_stacking = false;
 // Extra clearance for stacking receiver (TOTAL clearance; code applies half per side)
 stacking_clearance = 0.25; // [0:0.05:0.6]
@@ -399,7 +399,10 @@ module build_tray_wall_and_stacking_receiver() {
         // Base wall height to reach object height from holder floor
         // (holder_start_z is the top of the recess; holder floor is holder_start_z + holder_recess_depth)
         holder_floor_z_local = holder_start_z + holder_recess_depth;
-        wall_base_height = (holder_floor_z_local - h_base) + object_height;
+        // When stacking, the bin above inserts downward by roughly the Gridfinity base profile height.
+        // Add that headroom so `object_height` still represents usable height under a stacked bin.
+        stacking_insert_depth = enable_stacking ? BASE_PROFILE_MAX.y : 0;
+        wall_base_height = (holder_floor_z_local - h_base) + object_height + stacking_insert_depth;
         wall_total_height = wall_base_height + receiver_depth;
         corner_radius = BASE_OUTSIDE_RADIUS;
         

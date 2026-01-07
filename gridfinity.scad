@@ -34,7 +34,7 @@ object_height = 50; // [5:5:150]
 tray_wall_thickness = 2.0; // [1:0.5:4]
 // Allow trays to stack (adds ~5mm lip on top)
 enable_stacking = false;
-// Extra clearance for stacking receiver (bigger = looser fit)
+// Extra clearance for stacking receiver (TOTAL clearance; code applies half per side)
 stacking_clearance = 0.25; // [0:0.05:0.6]
 
 /* [Raised Floor] */
@@ -471,15 +471,17 @@ module wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, expand=0) {
 module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h, clearance=0.25) {
     // Receiver pocket carved into inner top edge of the wall ring within the top band.
     // Uses BASEPLATE_LIP points (two chamfers) and clamps inset to wall thickness.
+    // NOTE: `clearance` is TOTAL clearance; apply half per side.
+    clearance_side = clearance / 2;
     max_inset = max(0, wall_thick - 0.2);
     
     // We want the chamfer to START at the very top surface of the band and taper DOWN.
     // BASEPLATE_LIP is defined from the bottom up, so convert to depth-from-top:
     // depth_from_top = band_h - y
     p0x = 0;
-    p1x = min(BASEPLATE_LIP[1].x + clearance, max_inset);
-    p2x = min(BASEPLATE_LIP[2].x + clearance, max_inset);
-    p3x = min(BASEPLATE_LIP[3].x + clearance, max_inset);
+    p1x = min(BASEPLATE_LIP[1].x + clearance_side, max_inset);
+    p2x = min(BASEPLATE_LIP[2].x + clearance_side, max_inset);
+    p3x = min(BASEPLATE_LIP[3].x + clearance_side, max_inset);
     // Top extension at full inset
     q0 = [p3x, 0];                      // top surface
     q1 = [p3x, band_h - BASEPLATE_LIP[3].y];

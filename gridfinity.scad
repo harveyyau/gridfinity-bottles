@@ -310,7 +310,10 @@ start_offset_y = -(total_depth / 2) + usable_margin;
 wall_inner_width = total_width - tray_wall_thickness * 2;
 wall_inner_depth = total_depth - tray_wall_thickness * 2;
 
-union() {
+// ===== Build pipeline (composition) =====
+// These wrappers keep the “what gets built” readable, while leaving the Gridfinity core modules untouched.
+
+module build_gridfinity_base() {
     // Gridfinity base - clipped to match wall footprint for fractional grids
     intersection() {
         gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options);
@@ -320,11 +323,13 @@ union() {
         offset(BASE_OUTSIDE_RADIUS)
         square([total_width - BASE_OUTSIDE_RADIUS * 2, total_depth - BASE_OUTSIDE_RADIUS * 2], center = true);
     }
-    
+}
+
+module build_holders() {
     // Holder rims with holes - only clip these if wall is enabled
     clip_width = enable_tray_wall ? wall_inner_width : total_width;
     clip_depth = enable_tray_wall ? wall_inner_depth : total_depth;
-    
+
     intersection() {
         difference() {
             // Holder rim solids - tapered outer
@@ -347,81 +352,89 @@ union() {
         translate([-clip_width/2, -clip_depth/2, -1])
         cube([clip_width, clip_depth, 300]);
     }
-    
-        // Raised floor to fill empty space between bottles
-        if (enable_raised_floor) {
-            // Floor height from holder floor (capped to rim height)
-            floor_height = min(raised_floor_height, holder_rim_height);
-            // Actual holder floor Z (where objects sit, after recess)
-            holder_floor_z = holder_start_z + holder_recess_depth;
-            
-            // Floor dimensions - fit inside wall if enabled
-            floor_width = enable_tray_wall ? wall_inner_width : total_width;
-            floor_depth = enable_tray_wall ? wall_inner_depth : total_depth;
-            
-            difference() {
-                // Solid floor block - starts at holder floor
-                translate([0, 0, holder_floor_z + floor_height / 2])
-                cube([floor_width, floor_depth, floor_height], center = true);
-                
-                // Cut out bottle holes - tapered to match holder rim exactly
-                translate([start_offset_x, start_offset_y, holder_floor_z - 0.1])
-                for (pos = positions)
-                    translate([pos[0], pos[1], 0]) {
-                    // Match holder taper: bottom radius includes taper, top doesn't
-                    bottom_r = (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper;
-                    top_r = (cylinder_diameter / 2) + holder_rim_thickness;
-                    cylinder(floor_height + 0.2, bottom_r, top_r);
-                }
-            }
-        }
+}
+
+module build_raised_floor() {
+    // Raised floor to fill empty space between bottles
+    if (enable_raised_floor) {
+        // Floor height from holder floor (capped to rim height)
+        floor_height = min(raised_floor_height, holder_rim_height);
+        // Actual holder floor Z (where objects sit, after recess)
+        holder_floor_z = holder_start_z + holder_recess_depth;
         
-        // Tray wall for lifting/stacking
-        if (enable_tray_wall) {
-            // Wall starts at h_base (gridfinity top) to preserve base interface
-            wall_start_z = h_base;
-            // Receiver band height: make bins stackable by adding a lip band on top.
-            // Use the standard gridfinity lip height (5mm) so the top bin can seat fully.
-            receiver_depth = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
-            // Base wall height to reach object height from holder floor
-            wall_base_height = (holder_start_z - h_base) + object_height;
-            wall_total_height = wall_base_height + receiver_depth;
-            corner_radius = BASE_OUTSIDE_RADIUS;
+        // Floor dimensions - fit inside wall if enabled
+        floor_width = enable_tray_wall ? wall_inner_width : total_width;
+        floor_depth = enable_tray_wall ? wall_inner_depth : total_depth;
+        
+        difference() {
+            // Solid floor block - starts at holder floor
+            translate([0, 0, holder_floor_z + floor_height / 2])
+            cube([floor_width, floor_depth, floor_height], center = true);
             
-            // Main wall with uniform thickness (use offset for consistent corners)
-            difference() {
-                translate([0, 0, wall_start_z])
-                linear_extrude(wall_total_height)
-                difference() {
-                    offset(corner_radius)
-                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
-                    
-                    // Inner cutout - offset inward by wall thickness for uniform walls
-                    offset(corner_radius - tray_wall_thickness)
-                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
-                }
-                
-                // Cut receiving channel for stacking (receiver pocket on the INNER top edge)
-                if (enable_stacking && receiver_depth > 0) {
-                    // Carve the receiver into ONLY the added top band, on the INNER face of the wall.
-                    // Uses BASEPLATE_LIP (two chamfers) and clamps to wall thickness so it works for any wall thickness.
-                    translate([0, 0, wall_start_z + wall_base_height])
-                    stacking_receiver_cut_band(
-                        total_width,
-                        total_depth,
-                        corner_radius,
-                        tray_wall_thickness,
-                        receiver_depth,
-                        stacking_clearance
-                    );
-                }
-                
+            // Cut out bottle holes - tapered to match holder rim exactly
+            translate([start_offset_x, start_offset_y, holder_floor_z - 0.1])
+            for (pos = positions)
+                translate([pos[0], pos[1], 0]) {
+                // Match holder taper: bottom radius includes taper, top doesn't
+                bottom_r = (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper;
+                top_r = (cylinder_diameter / 2) + holder_rim_thickness;
+                cylinder(floor_height + 0.2, bottom_r, top_r);
             }
-            
-            // NOTE: stacking_lip_positive removed - we only need the receiver cut
-            // The receiver is cut into the wall above (in the difference block)
         }
     }
+}
+
+module build_tray_wall_and_stacking_receiver() {
+    if (enable_tray_wall) {
+        // Wall starts at h_base (gridfinity top) to preserve base interface
+        wall_start_z = h_base;
+        // Receiver band height: make bins stackable by adding a lip band on top.
+        // Use the standard gridfinity lip height (5mm) so the top bin can seat fully.
+        receiver_depth = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
+        // Base wall height to reach object height from holder floor
+        wall_base_height = (holder_start_z - h_base) + object_height;
+        wall_total_height = wall_base_height + receiver_depth;
+        corner_radius = BASE_OUTSIDE_RADIUS;
+        
+        // Main wall with uniform thickness (use offset for consistent corners)
+        difference() {
+            translate([0, 0, wall_start_z])
+            linear_extrude(wall_total_height)
+            difference() {
+                offset(corner_radius)
+                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                
+                // Inner cutout - offset inward by wall thickness for uniform walls
+                offset(corner_radius - tray_wall_thickness)
+                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+            }
+            
+            // Cut receiving channel for stacking (receiver pocket on the INNER top edge)
+            if (enable_stacking && receiver_depth > 0) {
+                // Carve the receiver into ONLY the added top band, on the INNER face of the wall.
+                // Uses BASEPLATE_LIP (two chamfers) and clamps to wall thickness so it works for any wall thickness.
+                translate([0, 0, wall_start_z + wall_base_height])
+                stacking_receiver_cut_band(
+                    total_width,
+                    total_depth,
+                    corner_radius,
+                    tray_wall_thickness,
+                    receiver_depth,
+                    stacking_clearance
+                );
+            }
+        }
+    }
+}
+
+module main() {
+    union() {
+        build_gridfinity_base();
+        build_holders();
+        build_raised_floor();
+        build_tray_wall_and_stacking_receiver();
+    }
+}
 
 
 // ===== Modules ===== //
@@ -1048,6 +1061,11 @@ module block_base_hole(hole_options, o=0) {
     }
 }
 
+// ===== Entry point =====
+// MakerWorld expects the model to be produced at top-level; we keep a single entrypoint for readability.
+main();
+
+// Optional debug: render a single base hole in isolation if test_options is defined
 if(!is_undef(test_options)){
     block_base_hole(test_options);
 }

@@ -378,17 +378,19 @@ union() {
         if (enable_tray_wall) {
             // Wall starts at h_base (gridfinity top) to preserve base interface
             wall_start_z = h_base;
-            // Receiver adds ~3mm depth for the stepped channel
-            receiver_depth = enable_stacking ? 3 : 0;
-            // Wall height: reaches object_height above holder floor, plus space for receiver
-            wall_height = (holder_start_z - h_base) + object_height + receiver_depth;
+            // Receiver band height: make bins stackable by adding a lip band on top.
+            // Use the standard gridfinity lip height (5mm) so the top bin can seat fully.
+            receiver_depth = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
+            // Base wall height to reach object height from holder floor
+            wall_base_height = (holder_start_z - h_base) + object_height;
+            wall_total_height = wall_base_height + receiver_depth;
             corner_radius = BASE_OUTSIDE_RADIUS;
             stacking_clearance = 0.25;
             
             // Main wall with uniform thickness (use offset for consistent corners)
             difference() {
                 translate([0, 0, wall_start_z])
-                linear_extrude(wall_height)
+                linear_extrude(wall_total_height)
                 difference() {
                     offset(corner_radius)
                     square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
@@ -398,16 +400,18 @@ union() {
                     square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
                 }
                 
-                // Cut receiving channel for stacking (pocket for gridfinity feet to fit into)
-                if (enable_stacking) {
-                    receiver_depth_total = 3;  // matches receiver_depth above
-                    // Cut from top of wall going down
-                    translate([0, 0, wall_start_z + wall_height - receiver_depth_total])
-                    stacking_receiver_cut(
-                        wall_inner_width,
-                        wall_inner_depth,
+                // Cut receiving channel for stacking (receiver pocket on the INNER top edge)
+                if (enable_stacking && receiver_depth > 0) {
+                    // Carve the receiver into ONLY the added top band, on the INNER face of the wall.
+                    // Uses BASEPLATE_LIP (two chamfers) and clamps to wall thickness so it works for any wall thickness.
+                    translate([0, 0, wall_start_z + wall_base_height])
+                    stacking_receiver_cut_band(
+                        total_width,
+                        total_depth,
+                        corner_radius,
                         tray_wall_thickness,
-                        corner_radius
+                        receiver_depth,
+                        stacking_clearance
                     );
                 }
                 
@@ -443,56 +447,75 @@ module stacking_lip_positive(width, depth) {
  * Creates a chamfered receiver channel confined to the top of the wall.
  * Footprint is inset from the wall interior to avoid intersecting rims/floor.
  */
-module stacking_receiver_cut(inner_w, inner_d, wall_thick, corner_r) {
-    clearance = 0.3;
-    inset = 0.8;          // shrink receiver footprint inside wall to avoid rim
-    depth_total = 3;      // total receiver depth
-    step1_depth = 0.8;    // first step depth
-    step2_depth = depth_total - step1_depth; // remaining depth
+module wall_ring_2d(outer_w, outer_d, corner_r, wall_thick) {
+    // 2D ring matching tray wall cross-section (outer - inner), centered
+    difference() {
+        offset(corner_r)
+        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+        
+        offset(corner_r - wall_thick)
+        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+    }
+}
+
+module wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, expand=0) {
+    // Inner face of the wall, expanded outward into the wall thickness by `expand`
+    offset(max(0, corner_r - wall_thick + expand))
+    square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+}
+
+module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h, clearance=0.25) {
+    // Receiver pocket carved into inner top edge of the wall ring within the top band.
+    // Uses BASEPLATE_LIP points (two chamfers) and clamps inset to wall thickness.
+    max_inset = max(0, wall_thick - 0.2);
     
-    // Constrain insets so they never exceed wall thickness
-    inset_clamped = min(inset, wall_thick - 0.2);
+    // Profile points: x = radial expansion into wall, y = depth down from top.
+    p0 = [0, 0];
+    p1 = [min(BASEPLATE_LIP[1].x + clearance, max_inset), BASEPLATE_LIP[1].y];
+    p2 = [min(BASEPLATE_LIP[2].x + clearance, max_inset), BASEPLATE_LIP[2].y];
+    p3 = [min(BASEPLATE_LIP[3].x + clearance, max_inset), BASEPLATE_LIP[3].y];
+    p4 = [p3.x, band_h];
     
-    // Outer footprint (within wall interior, slightly inset)
-    outer_w = inner_w - inset_clamped * 2 + clearance * 2;
-    outer_d = inner_d - inset_clamped * 2 + clearance * 2;
-    outer_r = max(0, corner_r - inset_clamped);
-    
-    // Inner footprint (further inset to form chamfer)
-    inner_w2 = inner_w - (inset_clamped + 1.8) * 2 + clearance * 2;
-    inner_d2 = inner_d - (inset_clamped + 1.8) * 2 + clearance * 2;
-    inner_r2 = max(0, corner_r - wall_thick + inset_clamped + 1.8);
-    
-    // Guard against negative sizes
-    if (outer_w > 0 && outer_d > 0 && inner_w2 > 0 && inner_d2 > 0) {
-        // Step 1
-        translate([0, 0, -step1_depth])
-        linear_extrude(step1_depth + 0.05)
-        difference() {
-            offset(outer_r)
-            square([outer_w - outer_r * 2, outer_d - outer_r * 2], center = true);
+    module _hull_slice(d0, x0, d1, x1) {
+        z0 = band_h - d0;
+        z1 = band_h - d1;
+        hull() {
+            translate([0, 0, z0])
+            linear_extrude(0.05)
+            wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, x0);
             
-            offset(inner_r2)
-            square([inner_w2 - inner_r2 * 2, inner_d2 - inner_r2 * 2], center = true);
+            translate([0, 0, z1])
+            linear_extrude(0.05)
+            wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, x1);
         }
+    }
+    
+    intersection() {
+        linear_extrude(band_h + 0.1)
+        wall_ring_2d(outer_w, outer_d, corner_r, wall_thick);
         
-        // Step 2 (slightly more inset)
-        inset_step2 = inset_clamped + 0.6;
-        inner_w3 = inner_w - inset_step2 * 2 + clearance * 2;
-        inner_d3 = inner_d - inset_step2 * 2 + clearance * 2;
-        inner_r3 = max(0, corner_r - wall_thick + inset_step2);
-        
-        if (inner_w3 > 0 && inner_d3 > 0) {
-            translate([0, 0, -depth_total])
-            linear_extrude(step2_depth + 0.05)
-            difference() {
-                offset(outer_r)
-                square([outer_w - outer_r * 2, outer_d - outer_r * 2], center = true);
-                
-                offset(inner_r3)
-                square([inner_w3 - inner_r3 * 2, inner_d3 - inner_r3 * 2], center = true);
-            }
+        union() {
+            _hull_slice(p0.y, p0.x, p1.y, p1.x);
+            _hull_slice(p1.y, p1.x, p2.y, p2.x);
+            _hull_slice(p2.y, p2.x, p3.y, p3.x);
+            _hull_slice(p3.y, p3.x, p4.y, p4.x);
         }
+    }
+}
+
+module stacking_receiver_cut(outer_w, outer_d, clearance=0.25) {
+    // Gridfinity base profile cutter (two chamfers), sized to footprint.
+    // IMPORTANT: do NOT flip vertically; we subtract the normal base shape from the added top band.
+    translation_x = BASE_OUTSIDE_RADIUS - BASE_PROFILE_MAX.x;
+    profile_size_x = outer_w - 2 * BASE_OUTSIDE_RADIUS;
+    profile_size_y = outer_d - 2 * BASE_OUTSIDE_RADIUS;
+    // Expand only in X (radial) for clearance; Y is height
+    receiver_profile = [for (p = BASE_PROFILE) [p.x + clearance, p.y]];
+    
+    if (profile_size_x > 0 && profile_size_y > 0) {
+        sweep_rounded(profile_size_x, profile_size_y)
+        translate([translation_x - clearance, 0, 0])
+        polygon(receiver_profile);
     }
 }
 

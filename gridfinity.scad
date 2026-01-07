@@ -472,26 +472,26 @@ module wall_inner_2d(outer_w, outer_d, corner_r, wall_thick, expand=0) {
 
 module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h, clearance=0.25) {
     // Receiver pocket carved into inner top edge of the wall ring within the top band.
-    // Uses BASEPLATE_LIP points (two chamfers) and clamps inset to wall thickness.
+    // Uses BASE_PROFILE (bin base profile: two 45° chamfers + vertical) and clamps inset to wall thickness.
     // NOTE: `clearance` is TOTAL clearance; apply half per side.
     clearance_side = clearance / 2;
     max_inset = max(0, wall_thick - 0.2);
     
-    // Chamfer should match Gridfinity angles (45°) and be WIDEST at the very top.
-    // BASEPLATE_LIP is defined bottom-up, so convert to depth-from-top:
+    // Chamfer should match the BIN BASE angles (45°) and be WIDEST at the very top.
+    // BASE_PROFILE is defined bottom-up, so convert to depth-from-top:
     // depth_from_top = band_h - y
     p0x = 0;
-    p1x = min(BASEPLATE_LIP[1].x + clearance_side, max_inset);
-    p2x = min(BASEPLATE_LIP[2].x + clearance_side, max_inset);
-    p3x = min(BASEPLATE_LIP[3].x + clearance_side, max_inset);
+    p1x = min(BASE_PROFILE[1].x + clearance_side, max_inset);
+    p2x = min(BASE_PROFILE[2].x + clearance_side, max_inset);
+    p3x = min(BASE_PROFILE_MAX.x + clearance_side, max_inset);
 
     // Build a depth-from-top profile (top -> bottom):
     // At the top surface we want full inset (p3x), then step down through the lip profile.
     q0 = [p3x, 0];                                 // top surface
-    q1 = [p3x, band_h - BASEPLATE_LIP[3].y];        // short vertical at max inset (typically 0.35mm)
-    q2 = [p2x, band_h - BASEPLATE_LIP[2].y];        // 45° chamfer
-    q3 = [p1x, band_h - BASEPLATE_LIP[1].y];        // vertical
-    q4 = [p0x, band_h - BASEPLATE_LIP[0].y];        // bottom of band (typically depth=band_h)
+    q1 = [p3x, band_h - BASE_PROFILE_MAX.y];        // short vertical at max inset (band_h - 4.75mm)
+    q2 = [p2x, band_h - BASE_PROFILE[2].y];         // 45° chamfer
+    q3 = [p1x, band_h - BASE_PROFILE[1].y];         // vertical
+    q4 = [p0x, band_h - BASE_PROFILE[0].y];         // bottom of band (typically depth=band_h)
     
     module _hull_slice(d0, x0, d1, x1) {
         z0 = band_h - d0;

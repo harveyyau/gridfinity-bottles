@@ -384,7 +384,6 @@ union() {
             wall_height = (holder_start_z - h_base) + object_height + receiver_depth;
             corner_radius = BASE_OUTSIDE_RADIUS;
             stacking_clearance = 0.25;
-            top_chamfer = 0.5;  // Chamfer on outer top edge
             
             // Main wall with uniform thickness (use offset for consistent corners)
             difference() {
@@ -409,16 +408,6 @@ union() {
                     );
                 }
                 
-                // Chamfer the outer top edge for cleaner look
-                translate([0, 0, wall_start_z + wall_height - top_chamfer])
-                linear_extrude(top_chamfer + 0.1)
-                difference() {
-                    offset(corner_radius + 1)
-                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
-                    
-                    offset(corner_radius - top_chamfer)
-                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
-                }
             }
             
             // NOTE: stacking_lip_positive removed - we only need the receiver cut

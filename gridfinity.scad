@@ -477,14 +477,21 @@ module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h
     clearance_side = clearance / 2;
     max_inset = max(0, wall_thick - 0.2);
     
-    // Chamfer should match Gridfinity angles (45°), so we use the BASEPLATE_LIP profile directly.
-    // Interpret BASEPLATE_LIP.y as "depth down from the TOP surface" of the band.
-    // (This avoids the accidental short vertical segment that made chamfers look steeper.)
-    p0 = [0, 0];
-    p1 = [min(BASEPLATE_LIP[1].x + clearance_side, max_inset), BASEPLATE_LIP[1].y];
-    p2 = [min(BASEPLATE_LIP[2].x + clearance_side, max_inset), BASEPLATE_LIP[2].y];
-    p3 = [min(BASEPLATE_LIP[3].x + clearance_side, max_inset), BASEPLATE_LIP[3].y];
-    p4 = [p3.x, band_h];
+    // Chamfer should match Gridfinity angles (45°) and be WIDEST at the very top.
+    // BASEPLATE_LIP is defined bottom-up, so convert to depth-from-top:
+    // depth_from_top = band_h - y
+    p0x = 0;
+    p1x = min(BASEPLATE_LIP[1].x + clearance_side, max_inset);
+    p2x = min(BASEPLATE_LIP[2].x + clearance_side, max_inset);
+    p3x = min(BASEPLATE_LIP[3].x + clearance_side, max_inset);
+
+    // Build a depth-from-top profile (top -> bottom):
+    // At the top surface we want full inset (p3x), then step down through the lip profile.
+    q0 = [p3x, 0];                                 // top surface
+    q1 = [p3x, band_h - BASEPLATE_LIP[3].y];        // short vertical at max inset (typically 0.35mm)
+    q2 = [p2x, band_h - BASEPLATE_LIP[2].y];        // 45° chamfer
+    q3 = [p1x, band_h - BASEPLATE_LIP[1].y];        // vertical
+    q4 = [p0x, band_h - BASEPLATE_LIP[0].y];        // bottom of band (typically depth=band_h)
     
     module _hull_slice(d0, x0, d1, x1) {
         z0 = band_h - d0;
@@ -505,10 +512,10 @@ module stacking_receiver_cut_band(outer_w, outer_d, corner_r, wall_thick, band_h
         wall_ring_2d(outer_w, outer_d, corner_r, wall_thick);
         
         union() {
-            _hull_slice(p0.y, p0.x, p1.y, p1.x);
-            _hull_slice(p1.y, p1.x, p2.y, p2.x);
-            _hull_slice(p2.y, p2.x, p3.y, p3.x);
-            _hull_slice(p3.y, p3.x, p4.y, p4.x);
+            _hull_slice(q0.y, q0.x, q1.y, q1.x);
+            _hull_slice(q1.y, q1.x, q2.y, q2.x);
+            _hull_slice(q2.y, q2.x, q3.y, q3.x);
+            _hull_slice(q3.y, q3.x, q4.y, q4.x);
         }
     }
 }

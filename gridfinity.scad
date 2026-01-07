@@ -378,11 +378,13 @@ union() {
         if (enable_tray_wall) {
             // Wall starts at h_base (gridfinity top) to preserve base interface
             wall_start_z = h_base;
-            stacking_lip_total_height = enable_stacking ? BASEPLATE_LIP_HEIGHT : 0;
+            // Use actual profile height for receiver depth (BASE_PROFILE_MAX.y ≈ 4.75mm)
+            receiver_depth = enable_stacking ? BASE_PROFILE_MAX.y + 0.5 : 0;
             // Wall height: reaches object_height above holder floor, plus space for receiver
-            wall_height = (holder_start_z - h_base) + object_height + stacking_lip_total_height;
+            wall_height = (holder_start_z - h_base) + object_height + receiver_depth;
             corner_radius = BASE_OUTSIDE_RADIUS;
             stacking_clearance = 0.25;
+            top_chamfer = 0.5;  // Chamfer on outer top edge
             
             // Main wall with uniform thickness (use offset for consistent corners)
             difference() {
@@ -400,12 +402,22 @@ union() {
                 // Cut receiving channel for stacking (pocket for gridfinity feet to fit into)
                 if (enable_stacking) {
                     // Cut from the top of the wall, going down
-                    // Use total dimensions so the cut extends into the wall material
-                    translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
+                    translate([0, 0, wall_start_z + wall_height - receiver_depth])
                     stacking_receiver_cut(
                         total_width + stacking_clearance * 2,
                         total_depth + stacking_clearance * 2
                     );
+                }
+                
+                // Chamfer the outer top edge for cleaner look
+                translate([0, 0, wall_start_z + wall_height - top_chamfer])
+                linear_extrude(top_chamfer + 0.1)
+                difference() {
+                    offset(corner_radius + 1)
+                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                    
+                    offset(corner_radius - top_chamfer)
+                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
                 }
             }
             

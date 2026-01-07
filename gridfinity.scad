@@ -400,9 +400,15 @@ union() {
                 
                 // Cut receiving channel for stacking (pocket for gridfinity feet to fit into)
                 if (enable_stacking) {
+                    receiver_depth_total = 3;  // matches receiver_depth above
                     // Cut from top of wall going down
-                    translate([0, 0, wall_start_z + wall_height])
-                    stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius);
+                    translate([0, 0, wall_start_z + wall_height - receiver_depth_total])
+                    stacking_receiver_cut(
+                        wall_inner_width,
+                        wall_inner_depth,
+                        tray_wall_thickness,
+                        corner_radius
+                    );
                 }
                 
             }
@@ -434,39 +440,59 @@ module stacking_lip_positive(width, depth) {
 }
 
 /**
- * Creates a simple chamfered receiver channel for stacking.
- * Uses basic geometry to avoid sweep_rounded edge artifacts.
- * The channel is a stepped pocket that matches the gridfinity base profile.
+ * Creates a chamfered receiver channel confined to the top of the wall.
+ * Footprint is inset from the wall interior to avoid intersecting rims/floor.
  */
-module stacking_receiver_cut(outer_w, outer_d, wall_thick, corner_r) {
+module stacking_receiver_cut(inner_w, inner_d, wall_thick, corner_r) {
     clearance = 0.3;
-    // Gridfinity base profile steps: ~0.7mm at 45°, then ~1.8mm at 45°, then ~2.15mm vertical
-    // Simplified to two steps for reliability
-    step1_depth = 0.8;   // First chamfer depth
-    step1_inset = 0.8;   // How far in from wall top
-    step2_depth = 2.0;   // Second chamfer depth  
-    step2_inset = 2.6;   // Total inset at bottom
+    inset = 0.8;          // shrink receiver footprint inside wall to avoid rim
+    depth_total = 3;      // total receiver depth
+    step1_depth = 0.8;    // first step depth
+    step2_depth = depth_total - step1_depth; // remaining depth
     
-    // Step 1: Small chamfer at top
-    translate([0, 0, -step1_depth])
-    linear_extrude(step1_depth + 0.1)
-    difference() {
-        offset(corner_r)
-        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
-        
-        offset(corner_r - wall_thick + step1_inset + clearance)
-        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
-    }
+    // Constrain insets so they never exceed wall thickness
+    inset_clamped = min(inset, wall_thick - 0.2);
     
-    // Step 2: Larger chamfer below
-    translate([0, 0, -step1_depth - step2_depth])
-    linear_extrude(step2_depth + 0.1)
-    difference() {
-        offset(corner_r)
-        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+    // Outer footprint (within wall interior, slightly inset)
+    outer_w = inner_w - inset_clamped * 2 + clearance * 2;
+    outer_d = inner_d - inset_clamped * 2 + clearance * 2;
+    outer_r = max(0, corner_r - inset_clamped);
+    
+    // Inner footprint (further inset to form chamfer)
+    inner_w2 = inner_w - (inset_clamped + 1.8) * 2 + clearance * 2;
+    inner_d2 = inner_d - (inset_clamped + 1.8) * 2 + clearance * 2;
+    inner_r2 = max(0, corner_r - wall_thick + inset_clamped + 1.8);
+    
+    // Guard against negative sizes
+    if (outer_w > 0 && outer_d > 0 && inner_w2 > 0 && inner_d2 > 0) {
+        // Step 1
+        translate([0, 0, -step1_depth])
+        linear_extrude(step1_depth + 0.05)
+        difference() {
+            offset(outer_r)
+            square([outer_w - outer_r * 2, outer_d - outer_r * 2], center = true);
+            
+            offset(inner_r2)
+            square([inner_w2 - inner_r2 * 2, inner_d2 - inner_r2 * 2], center = true);
+        }
         
-        offset(corner_r - wall_thick + step2_inset + clearance)
-        square([outer_w - corner_r * 2, outer_d - corner_r * 2], center = true);
+        // Step 2 (slightly more inset)
+        inset_step2 = inset_clamped + 0.6;
+        inner_w3 = inner_w - inset_step2 * 2 + clearance * 2;
+        inner_d3 = inner_d - inset_step2 * 2 + clearance * 2;
+        inner_r3 = max(0, corner_r - wall_thick + inset_step2);
+        
+        if (inner_w3 > 0 && inner_d3 > 0) {
+            translate([0, 0, -depth_total])
+            linear_extrude(step2_depth + 0.05)
+            difference() {
+                offset(outer_r)
+                square([outer_w - outer_r * 2, outer_d - outer_r * 2], center = true);
+                
+                offset(inner_r3)
+                square([inner_w3 - inner_r3 * 2, inner_d3 - inner_r3 * 2], center = true);
+            }
+        }
     }
 }
 

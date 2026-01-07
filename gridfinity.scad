@@ -400,10 +400,11 @@ union() {
                 // Cut receiving channel for stacking (pocket for gridfinity feet to fit into)
                 if (enable_stacking) {
                     // Cut from the top of the wall, going down
+                    // Use total dimensions so the cut extends into the wall material
                     translate([0, 0, wall_start_z + wall_height - BASEPLATE_LIP_HEIGHT])
                     stacking_receiver_cut(
-                        wall_inner_width + stacking_clearance * 2,
-                        wall_inner_depth + stacking_clearance * 2
+                        total_width + stacking_clearance * 2,
+                        total_depth + stacking_clearance * 2
                     );
                 }
             }

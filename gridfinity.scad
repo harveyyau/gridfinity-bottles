@@ -406,30 +406,53 @@ module build_tray_wall_and_stacking_receiver() {
         wall_total_height = wall_base_height + receiver_depth;
         corner_radius = BASE_OUTSIDE_RADIUS;
         
+        // If walls are too thin, you cannot cut the full Gridfinity receiver profile.
+        // That "clips" the chamfers and makes them look steeper/different.
+        // Fix: thicken ONLY the top receiver band inward (outer wall unchanged) as needed.
+        required_receiver_wall = BASE_PROFILE_MAX.x + (stacking_clearance / 2) + 0.2; // +0.2 safety
+        receiver_wall_thickness =
+            (enable_stacking && receiver_depth > 0) ? max(tray_wall_thickness, required_receiver_wall) : tray_wall_thickness;
+        receiver_extra_thickness = receiver_wall_thickness - tray_wall_thickness;
+        
         // Main wall with uniform thickness (use offset for consistent corners)
         difference() {
-            translate([0, 0, wall_start_z])
-            linear_extrude(wall_total_height)
-            difference() {
-                offset(corner_radius)
-                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+            union() {
+                translate([0, 0, wall_start_z])
+                linear_extrude(wall_total_height)
+                difference() {
+                    offset(corner_radius)
+                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                    
+                    // Inner cutout - offset inward by wall thickness for uniform walls
+                    offset(corner_radius - tray_wall_thickness)
+                    square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                }
                 
-                // Inner cutout - offset inward by wall thickness for uniform walls
-                offset(corner_radius - tray_wall_thickness)
-                square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                // Optional: add extra material inward only within the top receiver band
+                if (enable_stacking && receiver_depth > 0 && receiver_extra_thickness > 0) {
+                    translate([0, 0, wall_start_z + wall_base_height])
+                    linear_extrude(receiver_depth)
+                    difference() {
+                        offset(corner_radius)
+                        square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                        
+                        offset(corner_radius - receiver_wall_thickness)
+                        square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+                    }
+                }
             }
             
                 // Cut receiving channel for stacking (receiver pocket on the INNER top edge).
                 // Note: the outside wall remains; stacking works via this inner recess.
             if (enable_stacking && receiver_depth > 0) {
                 // Carve the receiver into ONLY the added top band, on the INNER face of the wall.
-                // Uses BASEPLATE_LIP (two chamfers) and clamps to wall thickness so it works for any wall thickness.
+                // Uses BASE_PROFILE (two 45° chamfers) and clamps to wall thickness.
                 translate([0, 0, wall_start_z + wall_base_height])
                 stacking_receiver_cut_band(
                     total_width,
                     total_depth,
                     corner_radius,
-                    tray_wall_thickness,
+                    receiver_wall_thickness,
                     receiver_depth,
                     stacking_clearance
                 );

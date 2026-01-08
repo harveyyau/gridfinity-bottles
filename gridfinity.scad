@@ -104,6 +104,32 @@ usable_margin = enable_tray_wall ? tray_wall_thickness : 0;
 usable_width = total_width - usable_margin * 2;
 usable_depth = total_depth - usable_margin * 2;
 
+// Inner opening (the space inside the tray wall). Bottle holes must fit inside this.
+opening_width = enable_tray_wall ? (total_width - tray_wall_thickness * 2) : total_width;
+opening_depth = enable_tray_wall ? (total_depth - tray_wall_thickness * 2) : total_depth;
+opening_corner_r = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
+
+// True hole radius (what must not be clipped by walls/corners)
+hole_radius = cylinder_diameter / 2;
+
+// Test whether a circle of radius `rad` centered at (x,y) fits inside a rounded rectangle
+// of size (w,d) with corner radius r. Coordinates are in [0..w], [0..d].
+function circle_fits_in_rounded_rect(x, y, w, d, r, rad) =
+    let(
+        // Convert to centered, positive quadrant
+        cx = abs(x - w/2),
+        cy = abs(y - d/2),
+        // Available extents after keeping the circle inside
+        dx = w/2 - rad,
+        dy = d/2 - rad,
+        rr = max(0, r - rad),
+        kx = max(0, cx - (dx - rr)),
+        ky = max(0, cy - (dy - rr))
+    )
+    // Must be inside the inset rectangle, and inside the inset corner circle
+    (cx <= dx && cy <= dy) &&
+    ((cx <= (dx - rr)) || (cy <= (dy - rr)) || (kx*kx + ky*ky <= rr*rr));
+
 // Center-to-center spacing between bottles
 // Bottle spacing includes clearance and minimum wall between bottles
 holder_spacing = cylinder_diameter + holder_clearance + min_wall_between;
@@ -186,9 +212,12 @@ function center_positions(positions, avail_w, avail_h, edge_dist) =
 // Generate valid bottle positions with optimal packing
 function generate_valid_positions() = 
     let(
-        min_edge_dist = holder_footprint_radius,
-        avail_w = usable_width - 2 * min_edge_dist,
-        avail_h = usable_depth - 2 * min_edge_dist,
+        // Key improvement: when a tray wall exists, it doesn't need to “contain” the holder rim.
+        // We only require the *hole* circle to fit fully inside the tray opening.
+        // (Rim walls can merge into the tray wall and will be clipped by it.)
+        min_edge_dist = hole_radius,
+        avail_w = opening_width - 2 * min_edge_dist,
+        avail_h = opening_depth - 2 * min_edge_dist,
         
         // Grid positions (preferred when counts are equal)
         grid_positions = generate_grid_positions(avail_w, avail_h, holder_spacing),
@@ -201,10 +230,16 @@ function generate_valid_positions() =
         // Only use hex if it fits MORE bottles (prefer grid when equal)
         use_hex = packing_mode != "grid" && len(hex_positions) > len(grid_positions),
         selected = use_hex ? hex_positions : grid_positions,
-        
-        centered = center_positions(selected, avail_w, avail_h, min_edge_dist)
+
+        // Center within the opening rectangle (then filter against rounded corners)
+        centered = center_positions(selected, avail_w, avail_h, min_edge_dist),
+        valid = [
+            for (p = centered)
+                if (circle_fits_in_rounded_rect(p[0], p[1], opening_width, opening_depth, opening_corner_r, hole_radius))
+                    p
+        ]
     )
-    len(centered) > 0 ? centered : [[usable_width/2, usable_depth/2]];
+    len(valid) > 0 ? valid : [[opening_width/2, opening_depth/2]];
 
 // ===== Option C helpers (readability) =====
 // Keep geometry identical, but reduce repeated formulas/loops.
@@ -357,29 +392,24 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     // Clearance is total; apply half per side by cutting slightly deeper.
     clear = clearance_total / 2;
 
-    // We must preserve Gridfinity chamfer angles regardless of wall thickness.
-    // For 45° chamfers, vertical height == horizontal inset.
-    // If the wall is too thin, we *truncate engagement* (shallower receiver),
-    // rather than steepening the angle or creating shelves/overhangs.
+    // Preserve Gridfinity chamfer angles for *any* wall thickness by scaling the
+    // full BASE_PROFILE uniformly (X and Z) to fit the available wall material.
+    // This avoids “wrong angle” faces that happen when you clamp/truncate.
+    //
+    // Effective max inset available for the profile after clearance:
+    avail_for_profile = max(0, max_cut - clear);
+    profile_scale = (BASE_PROFILE_MAX.x <= 0) ? 0 : min(1, avail_for_profile / BASE_PROFILE_MAX.x);
 
-    // Target insets (from BASE_PROFILE), with clearance applied.
-    t_mid_target = 0.8 + clear;
-    t_top_target = BASE_PROFILE_MAX.x + clear; // 2.95 + clear
-    t_bot_target = 0.0 + clear;
+    // Segment heights (Z) from BASE_PROFILE, uniformly scaled
+    segC_h = 0.8 * profile_scale;  // small chamfer
+    segB_h = 1.8 * profile_scale;  // vertical
+    segA_h = 2.15 * profile_scale; // big chamfer
+    receiver_depth = BASE_PROFILE_MAX.y * profile_scale;
 
-    // Clamp all insets to available wall material (max_cut).
-    t_mid = min(max_cut, t_mid_target);
-    t_top = min(max_cut, t_top_target);
-    t_bot = min(max_cut, t_bot_target);
-
-    // Effective chamfer heights (45°) are the inset deltas.
-    segA_h = max(0, t_top - t_mid); // big chamfer height
-    segC_h = max(0, t_mid - t_bot); // small chamfer height
-    // Vertical engagement section: keep modest; if walls are thin, avoid deep pockets.
-    segB_h = (max_cut >= 0.8) ? 1.8 : 0; // only add vertical section if we can at least form the small chamfer
-
-    receiver_depth = segA_h + segB_h + segC_h;
-    eps = 0.03; // overlap to avoid coplanar faces causing non-manifold edges
+    // Inset amounts into the wall at key Z levels (add clearance after scaling)
+    t_bot = clear; // deepest point
+    t_mid = 0.8 * profile_scale + clear;
+    t_top = BASE_PROFILE_MAX.x * profile_scale + clear;
 
     // 2D shell from inner wall outward by thickness t
     module inner_shell(t) {
@@ -394,29 +424,32 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
         }
     }
 
-    // Build the pocket as up to 3 segments from the TOP surface downward:
-    // - Segment A: 45° chamfer from t_top -> t_mid over segA_h (may be 0)
-    // - Segment B: vertical walls at t_mid over segB_h (disabled for thin walls)
-    // - Segment C: 45° chamfer from t_mid -> t_bot over segC_h (may be 0)
-    union() {
-        // A: big chamfer (top)
-        if (segA_h > 0.001 && t_top > 0.001) {
-            hull() {
-                translate([0, 0, eps]) linear_extrude(0.06) inner_shell(t_top);
-                translate([0, 0, -segA_h - eps]) linear_extrude(0.06) inner_shell(t_mid);
+    // If there's effectively no material to engage, do nothing.
+    if (profile_scale > 0.001 && max_cut > 0.001) {
+        // Build the pocket as 3 segments from the TOP surface downward:
+        // - Segment A: 45° chamfer from t_top -> t_mid over segA_h (may be 0)
+        // - Segment B: vertical walls at t_mid over segB_h (shrinks to 0 as scale→0)
+        // - Segment C: 45° chamfer from t_mid -> t_bot over segC_h (may be 0)
+        union() {
+            // A: big chamfer (top)
+            if (segA_h > 0.001 && t_top > 0.001) {
+                hull() {
+                    translate([0, 0, 0]) linear_extrude(0.05) inner_shell(t_top);
+                    translate([0, 0, -segA_h]) linear_extrude(0.05) inner_shell(t_mid);
+                }
             }
-        }
-        // B: vertical section
-        if (segB_h > 0.001 && t_mid > 0.001) {
-            translate([0, 0, -segA_h - segB_h - eps])
-            linear_extrude(segB_h + 2 * eps)
-            inner_shell(t_mid);
-        }
-        // C: small chamfer (bottom)
-        if (segC_h > 0.001 && t_mid > 0.001) {
-            hull() {
-                translate([0, 0, -segA_h - segB_h - eps]) linear_extrude(0.06) inner_shell(t_mid);
-                translate([0, 0, -receiver_depth - eps]) linear_extrude(0.06) inner_shell(t_bot);
+            // B: vertical section
+            if (segB_h > 0.001 && t_mid > 0.001) {
+                translate([0, 0, -segA_h - segB_h])
+                linear_extrude(segB_h)
+                inner_shell(t_mid);
+            }
+            // C: small chamfer (bottom)
+            if (segC_h > 0.001 && t_mid > 0.001) {
+                hull() {
+                    translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) inner_shell(t_mid);
+                    translate([0, 0, -receiver_depth]) linear_extrude(0.05) inner_shell(t_bot);
+                }
             }
         }
     }
@@ -492,17 +525,14 @@ module build_tray_wall() {
         wall_base_height = (holder_floor_z_local - h_base) + object_height;
         corner_radius = BASE_OUTSIDE_RADIUS;
         // Effective stacking band height depends on wall thickness:
-        // thick walls get the full 2-chamfer receiver; thin walls get only a shallow 45° lead-in.
+        // thick walls get the full 2-chamfer receiver; thin walls get a uniformly scaled profile
+        // (same chamfer angles, less engagement).
         min_outer_wall = 0.6;
         max_cut = max(0, tray_wall_thickness - min_outer_wall);
         clear = stacking_clearance / 2;
-        t_mid = min(max_cut, 0.8 + clear);
-        t_top = min(max_cut, BASE_PROFILE_MAX.x + clear);
-        t_bot = min(max_cut, 0.0 + clear);
-        segA_h = max(0, t_top - t_mid);
-        segC_h = max(0, t_mid - t_bot);
-        segB_h = (max_cut >= 0.8) ? 1.8 : 0;
-        receiver_depth_eff = segA_h + segB_h + segC_h;
+        avail_for_profile = max(0, max_cut - clear);
+        profile_scale = (BASE_PROFILE_MAX.x <= 0) ? 0 : min(1, avail_for_profile / BASE_PROFILE_MAX.x);
+        receiver_depth_eff = BASE_PROFILE_MAX.y * profile_scale;
         stacking_band_h = (enable_stacking ? receiver_depth_eff : 0);
         
         // Build as a *single* wall solid to avoid coplanar “touching faces” between wall + stacking band

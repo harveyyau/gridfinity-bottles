@@ -406,12 +406,24 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     segC_h = 0.8 * profile_scale;  // small chamfer
     segB_h = 1.8 * profile_scale;  // vertical
     segA_h = 2.15 * profile_scale; // big chamfer
-    receiver_depth = BASE_PROFILE_MAX.y * profile_scale;
+    // NOTE: The stacked bin/base will intrude ~5mm into the receiver.
+    // We must provide clearance for the full insertion depth (BASEPLATE_LIP_HEIGHT),
+    // even if the available wall thickness forces a reduced (scaled) engagement profile.
+    receiver_depth_scaled = BASE_PROFILE_MAX.y * profile_scale;
+    receiver_depth_total = BASEPLATE_LIP_HEIGHT;
+    extra_bottom_h = max(0, receiver_depth_total - receiver_depth_scaled);
 
     // Inset amounts into the wall at key Z levels (add clearance after scaling)
-    t_bot = clear; // deepest point
+    //
+    // IMPORTANT: The receiver must be wide enough at the *deepest* part of the engagement
+    // to accept Gridfinity feet. Empirically this corresponds to the baseplate’s ~0.7mm
+    // chamfer region (BASEPLATE_LIP[1].x) rather than “almost zero”.
     t_mid = 0.8 * profile_scale + clear;
     t_top = BASE_PROFILE_MAX.x * profile_scale + clear;
+    // Keep a minimum bottom inset that does NOT shrink with profile_scale:
+    // otherwise thicker walls can still end up with an opening that's too small (e.g. ~35.6mm).
+    t_bot_min = BASEPLATE_LIP[1].x + clear; // ~0.7mm + clearance
+    t_bot = min(max_cut, max(clear, t_bot_min));
 
     // Expanded opening shape at the wall's inner edge (solid 2D).
     // Using solids (not rings) avoids hull() artifacts that can look “stepped”.
@@ -447,8 +459,16 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
             if (segC_h > 0.001 && t_mid > 0.001) {
                 hull() {
                     translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
-                    translate([0, 0, -receiver_depth]) linear_extrude(0.05) opening_expanded(t_bot);
+                    translate([0, 0, -receiver_depth_scaled]) linear_extrude(0.05) opening_expanded(t_bot);
                 }
+            }
+
+            // D: extend clearance down to full insertion depth so a Gridfinity base always fits,
+            // regardless of wall thickness (no “hard stop” above the band bottom).
+            if (extra_bottom_h > 0.001 && t_bot > 0.001) {
+                translate([0, 0, -receiver_depth_total])
+                linear_extrude(extra_bottom_h)
+                opening_expanded(t_bot);
             }
         }
     }

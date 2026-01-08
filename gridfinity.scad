@@ -55,6 +55,10 @@ holder_clearance = 0.5; // [0:0.25:2]
 // Minimum gap between holders
 min_wall_between = 0; // [0:0.5:5]
 
+/* [Advanced: Rendering] */
+// Curve detail in mm (smaller = smoother, slower)
+curve_detail = 2; // [0.25:0.25:5]
+
 /* [Advanced: Base Holes] */
 // Only add holes at corners (faster print)
 only_corners = false;
@@ -71,7 +75,7 @@ chamfer_holes = true;
 
 /* [Hidden] */
 $fa = 4;
-$fs = 2;
+$fs = curve_detail;
 div_base_x = 1;
 div_base_y = 1;
 printable_hole_top = false;
@@ -335,8 +339,7 @@ intersection() {
         // Clip to wall outer boundary
         translate([0, 0, -1])
         linear_extrude(h_base + 10)
-        offset(BASE_OUTSIDE_RADIUS)
-        square([total_width - BASE_OUTSIDE_RADIUS * 2, total_depth - BASE_OUTSIDE_RADIUS * 2], center = true);
+        rounded_rect_2d(total_width, total_depth, BASE_OUTSIDE_RADIUS);
     }
 }
 
@@ -344,6 +347,7 @@ module build_holders() {
     // Holder rims with holes - only clip these if wall is enabled
     clip_width = enable_tray_wall ? wall_inner_width : total_width;
     clip_depth = enable_tray_wall ? wall_inner_depth : total_depth;
+    clip_radius = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
 
     intersection() {
         difference() {
@@ -356,8 +360,9 @@ module build_holders() {
                 cylinder(holder_h_total() + 0.2, holder_hole_r(), holder_hole_r());
         }
         // Clip holder rims to fit inside wall
-        translate([-clip_width/2, -clip_depth/2, -1])
-        cube([clip_width, clip_depth, 300]);
+        translate([0, 0, -1])
+        linear_extrude(300)
+        rounded_rect_2d(clip_width, clip_depth, clip_radius);
     }
 }
 
@@ -372,11 +377,13 @@ module build_raised_floor() {
         // Floor dimensions - fit inside wall if enabled
         floor_width = enable_tray_wall ? wall_inner_width : total_width;
         floor_depth = enable_tray_wall ? wall_inner_depth : total_depth;
+        floor_radius = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
         
         difference() {
             // Solid floor block - starts at holder floor
-            translate([0, 0, holder_floor_z + floor_height / 2])
-            cube([floor_width, floor_depth, floor_height], center = true);
+            translate([0, 0, holder_floor_z])
+            linear_extrude(floor_height)
+            rounded_rect_2d(floor_width, floor_depth, floor_radius);
             
             // Cut out bottle holes - tapered to match holder rim exactly
             for_each_position(base_xy = [start_offset_x, start_offset_y], z = holder_floor_z - 0.1)
@@ -399,12 +406,14 @@ module build_tray_wall() {
         translate([0, 0, wall_start_z])
         linear_extrude(wall_height)
         difference() {
-            offset(corner_radius)
-            square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+            rounded_rect_2d(total_width, total_depth, corner_radius);
             
             // Inner cutout - offset inward by wall thickness for uniform walls
-            offset(corner_radius - tray_wall_thickness)
-            square([total_width - corner_radius * 2, total_depth - corner_radius * 2], center = true);
+            rounded_rect_2d(
+                total_width - tray_wall_thickness * 2,
+                total_depth - tray_wall_thickness * 2,
+                max(0, corner_radius - tray_wall_thickness)
+            );
         }
     }
 }
@@ -595,6 +604,27 @@ module copy_mirror(vec=[0,1,0]) {
     if (vec != [0,0,0])
     mirror(vec)
     children();
+}
+
+// Simple 2D rounded rectangle without offset() seam artifacts.
+// width/depth are the final outer dimensions.
+module rounded_rect_2d(width, depth, radius) {
+    assert(is_num(width) && is_num(depth) && width > 0 && depth > 0);
+    assert(is_num(radius) && radius >= 0);
+    r = min(radius, min(width, depth) / 2);
+    // Force enough fragments so the hull() doesn't “shrink” and create big flat facets/creases.
+    // (This is cheap: only 4 circles.)
+    // Also rotate the circle so the polygon “seam vertex” doesn't line up on the same axis
+    // (this can show up as a vertical ridge on the corner in slicers).
+    rect_fn = max(256, ceil((2 * PI * r) / $fs));
+    seam_rot = 180 / rect_fn;
+    hull() {
+        for (sx = [-1, 1])
+        for (sy = [-1, 1])
+            translate([sx * (width/2 - r), sy * (depth/2 - r)])
+            rotate(seam_rot)
+            circle(r = r, $fn = rect_fn);
+    }
 }
 
 module pattern_linear(x = 1, y = 1, sx = 0, sy = 0) {

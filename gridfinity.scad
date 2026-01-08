@@ -393,32 +393,30 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     // Keep some outer wall so we never perforate the outside.
     min_outer_wall = 0.6;
     max_cut = max(0, wall_thickness - min_outer_wall);
-    // Clearance is total; apply half per side by cutting slightly deeper.
-    // IMPORTANT: clearance can't exceed available wall material; clamp to avoid “receiver eats everything”
-    // or “receiver disappears” behavior when users enter large values.
-    clear = min(clearance_total / 2, max(0, max_cut - 0.05));
+    // Clearance is total; apply half per side.
+    // IMPORTANT: clearance should never change the *shape* of the Gridfinity profile,
+    // only the amount of extra room around it. So we apply clearance as an added
+    // offset to all insets equally (bounded by available wall thickness).
+    clear_req = max(0, clearance_total / 2);
 
     // Receiver depth: stacked Gridfinity base inserts about 5mm.
     receiver_depth_total = BASEPLATE_LIP_HEIGHT; // 5
 
-    // As wall thickness increases, we should "reveal" more of the *same* negative profile.
-    // We do this by clamping the insets into the wall material (X) without scaling the profile in Z.
-    //
-    // Target insets (from Gridfinity profile), with clearance:
-    t_top_target = BASE_PROFILE_MAX.x + clear;      // 2.95 + clear
-    t_mid_target = 0.8 + clear;                    // small chamfer inset
-    t_bot_target = BASEPLATE_LIP[1].x + clear;     // ~0.7 + clear (ensures feet fit at full depth)
+    // Base (spec) insets with NO clearance (these define the *shape*).
+    top_raw = min(max_cut, BASE_PROFILE_MAX.x);     // 2.95 revealed as wall thickens
+    mid_raw = min(max_cut, 0.8);                   // small chamfer shelf
+    bot_raw = min(max_cut, BASEPLATE_LIP[1].x);    // ~0.7 ensures feet fit at full depth
 
-    // Clamp insets by available wall material:
-    t_top = min(max_cut, t_top_target);
-    t_mid = min(max_cut, t_mid_target);
-    t_bot = min(max_cut, t_bot_target);
+    // Apply clearance uniformly to all insets, but never beyond available material.
+    clear = min(clear_req, max(0, max_cut - top_raw));
+    t_top = top_raw + clear;
+    t_mid = mid_raw + clear;
+    t_bot = bot_raw + clear;
 
-    // Segment heights: keep 45° chamfers by tying vertical drop to horizontal inset delta.
-    // Cap to the spec heights so thick walls don't overshoot.
-    segA_h = min(2.15, max(0, t_top - t_mid));  // big chamfer height
-    segB_h = (max_cut >= t_mid_target) ? 1.8 : 0; // vertical section only once mid inset is achievable
-    segC_h = min(0.8, max(0, t_mid - t_bot));   // small chamfer height
+    // Segment heights (45°) depend only on the *raw* insets (shape reveal), not clearance.
+    segA_h = min(2.15, max(0, top_raw - mid_raw));
+    segB_h = (max_cut >= 0.8) ? 1.8 : 0;
+    segC_h = min(0.8, max(0, mid_raw - bot_raw));
 
     // Expanded opening shape at the wall's inner edge (solid 2D).
     // Using solids (not rings) avoids hull() artifacts that can look “stepped”.

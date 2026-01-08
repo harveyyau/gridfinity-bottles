@@ -398,34 +398,27 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     // or “receiver disappears” behavior when users enter large values.
     clear = min(clearance_total / 2, max(0, max_cut - 0.05));
 
-    // Preserve Gridfinity chamfer angles for *any* wall thickness by scaling the
-    // full BASE_PROFILE uniformly (X and Z) to fit the available wall material.
-    // This avoids “wrong angle” faces that happen when you clamp/truncate.
-    //
-    // Effective max inset available for the profile after clearance:
-    avail_for_profile = max(0, max_cut - clear);
-    profile_scale = (BASE_PROFILE_MAX.x <= 0) ? 0 : min(1, avail_for_profile / BASE_PROFILE_MAX.x);
+    // Receiver depth: stacked Gridfinity base inserts about 5mm.
+    receiver_depth_total = BASEPLATE_LIP_HEIGHT; // 5
 
-    // Segment heights (Z) from BASE_PROFILE, uniformly scaled
-    segC_h = 0.8 * profile_scale;  // small chamfer
-    segB_h = 1.8 * profile_scale;  // vertical
-    segA_h = 2.15 * profile_scale; // big chamfer
-    // NOTE: The stacked bin/base will intrude ~5mm into the receiver.
-    // We must provide clearance for the full insertion depth (BASEPLATE_LIP_HEIGHT).
-    // We cut the pocket down the full depth, but only scale *how far into the wall* we engage.
-    receiver_depth_total = BASEPLATE_LIP_HEIGHT;
-
-    // Inset amounts into the wall at key Z levels (add clearance after scaling)
+    // As wall thickness increases, we should "reveal" more of the *same* negative profile.
+    // We do this by clamping the insets into the wall material (X) without scaling the profile in Z.
     //
-    // IMPORTANT: The receiver must be wide enough at the *deepest* part of the engagement
-    // to accept Gridfinity feet. Empirically this corresponds to the baseplate’s ~0.7mm
-    // chamfer region (BASEPLATE_LIP[1].x) rather than “almost zero”.
-    t_mid = min(max_cut, 0.8 * profile_scale + clear);
-    t_top = min(max_cut, BASE_PROFILE_MAX.x * profile_scale + clear);
-    // Keep a minimum bottom inset that does NOT shrink with profile_scale:
-    // otherwise thicker walls can still end up with an opening that's too small (e.g. ~35.6mm).
-    t_bot_min = BASEPLATE_LIP[1].x + clear; // ~0.7mm + clearance
-    t_bot = min(max_cut, max(clear, t_bot_min));
+    // Target insets (from Gridfinity profile), with clearance:
+    t_top_target = BASE_PROFILE_MAX.x + clear;      // 2.95 + clear
+    t_mid_target = 0.8 + clear;                    // small chamfer inset
+    t_bot_target = BASEPLATE_LIP[1].x + clear;     // ~0.7 + clear (ensures feet fit at full depth)
+
+    // Clamp insets by available wall material:
+    t_top = min(max_cut, t_top_target);
+    t_mid = min(max_cut, t_mid_target);
+    t_bot = min(max_cut, t_bot_target);
+
+    // Segment heights: keep 45° chamfers by tying vertical drop to horizontal inset delta.
+    // Cap to the spec heights so thick walls don't overshoot.
+    segA_h = min(2.15, max(0, t_top - t_mid));  // big chamfer height
+    segB_h = (max_cut >= t_mid_target) ? 1.8 : 0; // vertical section only once mid inset is achievable
+    segC_h = min(0.8, max(0, t_mid - t_bot));   // small chamfer height
 
     // Expanded opening shape at the wall's inner edge (solid 2D).
     // Using solids (not rings) avoids hull() artifacts that can look “stepped”.
@@ -438,7 +431,7 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     }
 
     // If there's effectively no material to engage, do nothing.
-    if (profile_scale > 0.001 && max_cut > 0.001) {
+    if (max_cut > 0.001) {
         if (stacking_receiver_style == "chamfer") {
             // Smooth/clean option: one continuous taper for the full insertion depth.
             // (Angle will vary with wall thickness; still guaranteed to fit.)
@@ -544,15 +537,6 @@ module build_tray_wall() {
         holder_floor_z_local = holder_start_z + holder_recess_depth;
         wall_base_height = (holder_floor_z_local - h_base) + object_height;
         corner_radius = BASE_OUTSIDE_RADIUS;
-        // Effective stacking band height depends on wall thickness:
-        // thick walls get the full 2-chamfer receiver; thin walls get a uniformly scaled profile
-        // (same chamfer angles, less engagement).
-        min_outer_wall = 0.6;
-        max_cut = max(0, tray_wall_thickness - min_outer_wall);
-        clear = stacking_clearance / 2;
-        avail_for_profile = max(0, max_cut - clear);
-        profile_scale = (BASE_PROFILE_MAX.x <= 0) ? 0 : min(1, avail_for_profile / BASE_PROFILE_MAX.x);
-        receiver_depth_eff = BASE_PROFILE_MAX.y * profile_scale;
         // Always raise the wall by the Gridfinity stack insertion depth so a stacked bin doesn't reduce usable height.
         // (Even if walls are too thin for a full-depth receiver, extra height doesn't create shelves/overhangs.)
         stacking_band_h = (enable_stacking ? BASEPLATE_LIP_HEIGHT : 0);
@@ -567,8 +551,8 @@ module build_tray_wall() {
             linear_extrude(wall_total_height)
             wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
 
-            // Receiver pocket: cut down from the *top* of the wall, limited to the added stacking band
-            // because stacking_receiver_cut() only extends downward by receiver_depth_eff.
+            // Receiver pocket: cut down from the *top* of the wall. The cutter itself only
+            // extends down 5mm (BASEPLATE_LIP_HEIGHT), so it only affects the added stacking band.
             if (enable_stacking && stacking_band_h > 0.01) {
                 translate([0, 0, wall_total_height + eps])
                 stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);

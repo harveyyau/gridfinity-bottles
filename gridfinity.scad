@@ -36,6 +36,8 @@ tray_wall_thickness = 2.0; // [1:0.5:4]
 enable_stacking = false;
 // Total XY clearance for stacking fit (0.2–0.6 typical; total, not per-side)
 stacking_clearance = 0.3; // [0:0.1:2]
+// Receiver shape: spec matches Gridfinity profile; chamfer is smoother/cleaner but not spec-identical
+stacking_receiver_style = "spec"; // [spec, chamfer]
 
 /* [Raised Floor] */
 // Fill gaps between holders with a raised surface
@@ -435,30 +437,36 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
 
     // If there's effectively no material to engage, do nothing.
     if (profile_scale > 0.001 && max_cut > 0.001) {
-        // Build the pocket as 3 segments from the TOP surface downward:
-        // - Segment A: 45° chamfer from t_top -> t_mid over segA_h (may be 0)
-        // - Segment B: vertical walls at t_mid over segB_h (shrinks to 0 as scale→0)
-        // - Segment C: 45° chamfer from t_mid -> t_bot over segC_h (may be 0)
-        union() {
-            // A: big chamfer (top)
-            if (segA_h > 0.001 && t_top > 0.001) {
-                hull() {
-                    translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
-                    translate([0, 0, -segA_h]) linear_extrude(0.05) opening_expanded(t_mid);
+        if (stacking_receiver_style == "chamfer") {
+            // Smooth/clean option: one continuous taper for the full insertion depth.
+            // (Angle will vary with wall thickness; still guaranteed to fit.)
+            hull() {
+                translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
+                translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
+            }
+        } else {
+            // Spec-like option: two 45° chamfers with a straight section between (Gridfinity base profile).
+            union() {
+                // A: big chamfer (top)
+                if (segA_h > 0.001 && t_top > 0.001) {
+                    hull() {
+                        translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
+                        translate([0, 0, -segA_h]) linear_extrude(0.05) opening_expanded(t_mid);
+                    }
                 }
-            }
-            // B: vertical section
-            if (segB_h > 0.001 && t_mid > 0.001) {
-                translate([0, 0, -segA_h - segB_h])
-                linear_extrude(segB_h)
-                opening_expanded(t_mid);
-            }
-            // C: small chamfer (bottom)
-            if (segC_h > 0.001 && t_mid > 0.001) {
-                hull() {
-                    translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
-                    // Extend the bottom chamfer all the way to the band bottom to avoid an extra “step band”
-                    translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
+                // B: vertical section
+                if (segB_h > 0.001 && t_mid > 0.001) {
+                    translate([0, 0, -segA_h - segB_h])
+                    linear_extrude(segB_h)
+                    opening_expanded(t_mid);
+                }
+                // C: small chamfer (bottom)
+                if (segC_h > 0.001 && t_mid > 0.001) {
+                    hull() {
+                        translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
+                        // Extend the bottom chamfer all the way to the band bottom to avoid an extra “step band”
+                        translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
+                    }
                 }
             }
         }

@@ -32,6 +32,10 @@ enable_tray_wall = false;
 object_height = 50; // [5:5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
+// Add Gridfinity stacking receiver on top of the wall (adds ~4.75mm extra height)
+enable_stacking = false;
+// Total XY clearance for stacking fit (0.2–0.6 typical; total, not per-side)
+stacking_clearance = 0.3; // [0:0.1:2]
 
 /* [Raised Floor] */
 // Fill gaps between holders with a raised surface
@@ -332,6 +336,92 @@ wall_inner_depth = total_depth - tray_wall_thickness * 2;
 // ===== Build pipeline (composition) =====
 // These wrappers keep the “what gets built” readable, while leaving the Gridfinity core modules untouched.
 
+// 2D ring for walls (outer minus inner), using rounded rectangles for artifact-free corners
+module wall_ring_2d(outer_w, outer_d, wall_thickness, corner_r) {
+    inner_w = outer_w - wall_thickness * 2;
+    inner_d = outer_d - wall_thickness * 2;
+    inner_r = max(0, corner_r - wall_thickness);
+    assert(inner_w > 0 && inner_d > 0, "tray_wall_thickness is too large for this grid size");
+    difference() {
+        rounded_rect_2d(outer_w, outer_d, corner_r);
+        rounded_rect_2d(inner_w, inner_d, inner_r);
+    }
+}
+
+// Stackable receiver: carve a Gridfinity-style 2-chamfer pocket into the *inside top* of the wall.
+// This is built from the same dimensions as BASE_PROFILE (0.8 / 1.8 / 2.15 @ 45°).
+module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearance_total=0.3) {
+    // Keep some outer wall so we never perforate the outside.
+    min_outer_wall = 0.6;
+    max_cut = max(0, wall_thickness - min_outer_wall);
+    // Clearance is total; apply half per side by cutting slightly deeper.
+    clear = clearance_total / 2;
+
+    // We must preserve Gridfinity chamfer angles regardless of wall thickness.
+    // For 45° chamfers, vertical height == horizontal inset.
+    // If the wall is too thin, we *truncate engagement* (shallower receiver),
+    // rather than steepening the angle or creating shelves/overhangs.
+
+    // Target insets (from BASE_PROFILE), with clearance applied.
+    t_mid_target = 0.8 + clear;
+    t_top_target = BASE_PROFILE_MAX.x + clear; // 2.95 + clear
+    t_bot_target = 0.0 + clear;
+
+    // Clamp all insets to available wall material (max_cut).
+    t_mid = min(max_cut, t_mid_target);
+    t_top = min(max_cut, t_top_target);
+    t_bot = min(max_cut, t_bot_target);
+
+    // Effective chamfer heights (45°) are the inset deltas.
+    segA_h = max(0, t_top - t_mid); // big chamfer height
+    segC_h = max(0, t_mid - t_bot); // small chamfer height
+    // Vertical engagement section: keep modest; if walls are thin, avoid deep pockets.
+    segB_h = (max_cut >= 0.8) ? 1.8 : 0; // only add vertical section if we can at least form the small chamfer
+
+    receiver_depth = segA_h + segB_h + segC_h;
+    eps = 0.03; // overlap to avoid coplanar faces causing non-manifold edges
+
+    // 2D shell from inner wall outward by thickness t
+    module inner_shell(t) {
+        t2 = max(0, t);
+        // Grow the inner opening outward by t2 to define the cut shell thickness.
+        inner_w0 = outer_w - wall_thickness * 2;
+        inner_d0 = outer_d - wall_thickness * 2;
+        inner_r0 = max(0, corner_r - wall_thickness);
+        difference() {
+            rounded_rect_2d(inner_w0 + t2 * 2, inner_d0 + t2 * 2, inner_r0 + t2);
+            rounded_rect_2d(inner_w0, inner_d0, inner_r0);
+        }
+    }
+
+    // Build the pocket as up to 3 segments from the TOP surface downward:
+    // - Segment A: 45° chamfer from t_top -> t_mid over segA_h (may be 0)
+    // - Segment B: vertical walls at t_mid over segB_h (disabled for thin walls)
+    // - Segment C: 45° chamfer from t_mid -> t_bot over segC_h (may be 0)
+    union() {
+        // A: big chamfer (top)
+        if (segA_h > 0.001 && t_top > 0.001) {
+            hull() {
+                translate([0, 0, eps]) linear_extrude(0.06) inner_shell(t_top);
+                translate([0, 0, -segA_h - eps]) linear_extrude(0.06) inner_shell(t_mid);
+            }
+        }
+        // B: vertical section
+        if (segB_h > 0.001 && t_mid > 0.001) {
+            translate([0, 0, -segA_h - segB_h - eps])
+            linear_extrude(segB_h + 2 * eps)
+            inner_shell(t_mid);
+        }
+        // C: small chamfer (bottom)
+        if (segC_h > 0.001 && t_mid > 0.001) {
+            hull() {
+                translate([0, 0, -segA_h - segB_h - eps]) linear_extrude(0.06) inner_shell(t_mid);
+                translate([0, 0, -receiver_depth - eps]) linear_extrude(0.06) inner_shell(t_bot);
+            }
+        }
+    }
+}
+
 module build_gridfinity_base() {
     // Gridfinity base - clipped to match wall footprint for fractional grids
 intersection() {
@@ -399,21 +489,38 @@ module build_tray_wall() {
         // Base wall height to reach object height from holder floor
         // (holder_start_z is the top of the recess; holder floor is holder_start_z + holder_recess_depth)
         holder_floor_z_local = holder_start_z + holder_recess_depth;
-        wall_height = (holder_floor_z_local - h_base) + object_height;
+        wall_base_height = (holder_floor_z_local - h_base) + object_height;
         corner_radius = BASE_OUTSIDE_RADIUS;
+        // Effective stacking band height depends on wall thickness:
+        // thick walls get the full 2-chamfer receiver; thin walls get only a shallow 45° lead-in.
+        min_outer_wall = 0.6;
+        max_cut = max(0, tray_wall_thickness - min_outer_wall);
+        clear = stacking_clearance / 2;
+        t_mid = min(max_cut, 0.8 + clear);
+        t_top = min(max_cut, BASE_PROFILE_MAX.x + clear);
+        t_bot = min(max_cut, 0.0 + clear);
+        segA_h = max(0, t_top - t_mid);
+        segC_h = max(0, t_mid - t_bot);
+        segB_h = (max_cut >= 0.8) ? 1.8 : 0;
+        receiver_depth_eff = segA_h + segB_h + segC_h;
+        stacking_band_h = (enable_stacking ? receiver_depth_eff : 0);
         
-        // Main wall with uniform thickness (use offset for consistent corners)
+        // Build as a *single* wall solid to avoid coplanar “touching faces” between wall + stacking band
+        // (those show up as non-manifold edges / slicer artifacts).
+        wall_total_height = wall_base_height + stacking_band_h;
+        eps = 0.03;
+
         translate([0, 0, wall_start_z])
-        linear_extrude(wall_height)
         difference() {
-            rounded_rect_2d(total_width, total_depth, corner_radius);
-            
-            // Inner cutout - offset inward by wall thickness for uniform walls
-            rounded_rect_2d(
-                total_width - tray_wall_thickness * 2,
-                total_depth - tray_wall_thickness * 2,
-                max(0, corner_radius - tray_wall_thickness)
-            );
+            linear_extrude(wall_total_height)
+            wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+
+            // Receiver pocket: cut down from the *top* of the wall, limited to the added stacking band
+            // because stacking_receiver_cut() only extends downward by receiver_depth_eff.
+            if (enable_stacking && stacking_band_h > 0.01) {
+                translate([0, 0, wall_total_height + eps])
+                stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
+            }
         }
     }
 }

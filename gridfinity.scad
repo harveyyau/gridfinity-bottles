@@ -104,32 +104,6 @@ usable_margin = enable_tray_wall ? tray_wall_thickness : 0;
 usable_width = total_width - usable_margin * 2;
 usable_depth = total_depth - usable_margin * 2;
 
-// Inner opening (the space inside the tray wall). Bottle holes must fit inside this.
-opening_width = enable_tray_wall ? (total_width - tray_wall_thickness * 2) : total_width;
-opening_depth = enable_tray_wall ? (total_depth - tray_wall_thickness * 2) : total_depth;
-opening_corner_r = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
-
-// True hole radius (what must not be clipped by walls/corners)
-hole_radius = cylinder_diameter / 2;
-
-// Test whether a circle of radius `rad` centered at (x,y) fits inside a rounded rectangle
-// of size (w,d) with corner radius r. Coordinates are in [0..w], [0..d].
-function circle_fits_in_rounded_rect(x, y, w, d, r, rad) =
-    let(
-        // Convert to centered, positive quadrant
-        cx = abs(x - w/2),
-        cy = abs(y - d/2),
-        // Available extents after keeping the circle inside
-        dx = w/2 - rad,
-        dy = d/2 - rad,
-        rr = max(0, r - rad),
-        kx = max(0, cx - (dx - rr)),
-        ky = max(0, cy - (dy - rr))
-    )
-    // Must be inside the inset rectangle, and inside the inset corner circle
-    (cx <= dx && cy <= dy) &&
-    ((cx <= (dx - rr)) || (cy <= (dy - rr)) || (kx*kx + ky*ky <= rr*rr));
-
 // Center-to-center spacing between bottles
 // Bottle spacing includes clearance and minimum wall between bottles
 holder_spacing = cylinder_diameter + holder_clearance + min_wall_between;
@@ -300,6 +274,34 @@ d_magic = -2*d_clear-2*d_wall+d_div;
 
 // ****************************************
 BASE_OUTSIDE_RADIUS = r_base;  
+
+// ===== Placement helpers (needs BASE_OUTSIDE_RADIUS) =====
+
+// Inner opening (the space inside the tray wall). Bottle holes must fit inside this.
+opening_width = enable_tray_wall ? (total_width - tray_wall_thickness * 2) : total_width;
+opening_depth = enable_tray_wall ? (total_depth - tray_wall_thickness * 2) : total_depth;
+opening_corner_r = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
+
+// True hole radius (what must not be clipped by walls/corners)
+hole_radius = cylinder_diameter / 2;
+
+// Test whether a circle of radius `rad` centered at (x,y) fits inside a rounded rectangle
+// of size (w,d) with corner radius r. Coordinates are in [0..w], [0..d].
+function circle_fits_in_rounded_rect(x, y, w, d, r, rad) =
+    let(
+        // Convert to centered, positive quadrant
+        cx = abs(x - w/2),
+        cy = abs(y - d/2),
+        // Available extents after keeping the circle inside
+        dx = w/2 - rad,
+        dy = d/2 - rad,
+        rr = max(0, r - rad),
+        kx = max(0, cx - (dx - rr)),
+        ky = max(0, cy - (dy - rr))
+    )
+    // Must be inside the inset rectangle, and inside the inset corner circle
+    (cx <= dx && cy <= dy) &&
+    ((cx <= (dx - rr)) || (cy <= (dy - rr)) || (kx*kx + ky*ky <= rr*rr));
 
 BASE_PROFILE = [
     [0, 0], // Innermost bottom point

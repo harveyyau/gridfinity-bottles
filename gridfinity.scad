@@ -21,15 +21,15 @@ gridy = 2; // [1:0.5:8]
 
 /* [Cylinder Size] */
 // Diameter of your cylinder (measured)
-cylinder_diameter = 32; // [10:1:100]
+cylinder_diameter = 32; // [10:0.1:100]
 // How tall to make the holder rim (keeps cylinders upright)
-holder_rim_height = 15; // [5:1:50]
+holder_rim_height = 15; // [5:0.1:50]
 
 /* [Outer Wall] */
 // Add walls around the tray (for lifting out of drawer)
 enable_tray_wall = false;
 // Height of your cylinders (wall will be this tall)
-object_height = 50; // [5:5:150]
+object_height = 50; // [5:0.5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
 // Add Gridfinity stacking receiver on top of the wall (adds ~4.75mm extra height)
@@ -41,7 +41,7 @@ stacking_clearance = 0.3; // [0:0.1:2]
 // Fill gaps between holders with a raised surface
 enable_raised_floor = false;
 // Floor height (set equal to holder_rim_height for flush surface)
-raised_floor_height = 15; // [1:1:30]
+raised_floor_height = 15; // [1:0.1:30]
 
 /* [Advanced: Holder Details] */
 // Wall thickness around each holder

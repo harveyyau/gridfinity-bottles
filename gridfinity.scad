@@ -32,7 +32,7 @@ enable_tray_wall = false;
 object_height = 50; // [5:0.5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
-// Add Gridfinity stacking receiver on top of the wall (adds ~4.75mm extra height)
+// Add Gridfinity stacking receiver on top of the wall (adds ~5mm extra height so object_height stays usable when stacked)
 enable_stacking = false;
 // Total XY clearance for stacking fit (0.2–0.6 typical; total, not per-side)
 stacking_clearance = 0.3; // [0:0.1:2]
@@ -535,7 +535,9 @@ module build_tray_wall() {
         avail_for_profile = max(0, max_cut - clear);
         profile_scale = (BASE_PROFILE_MAX.x <= 0) ? 0 : min(1, avail_for_profile / BASE_PROFILE_MAX.x);
         receiver_depth_eff = BASE_PROFILE_MAX.y * profile_scale;
-        stacking_band_h = (enable_stacking ? receiver_depth_eff : 0);
+        // Always raise the wall by the Gridfinity stack insertion depth so a stacked bin doesn't reduce usable height.
+        // (Even if walls are too thin for a full-depth receiver, extra height doesn't create shelves/overhangs.)
+        stacking_band_h = (enable_stacking ? BASEPLATE_LIP_HEIGHT : 0);
         
         // Build as a *single* wall solid to avoid coplanar “touching faces” between wall + stacking band
         // (those show up as non-manifold edges / slicer artifacts).

@@ -20,7 +20,7 @@ gridx = 2; // [1:0.5:8]
 gridy = 2; // [1:0.5:8]
 
 /* [Cylinder Size] */
-// Diameter of your cylinder + 0.5mm clearance
+// Diameter of your cylinder (measured)
 cylinder_diameter = 32; // [10:1:100]
 // How tall to make the holder rim (keeps cylinders upright)
 holder_rim_height = 15; // [5:1:50]
@@ -54,7 +54,7 @@ holder_recess_depth = 0.9; // [0:0.1:3]
 /* [Advanced: Spacing] */
 // How cylinders are arranged: auto picks the best fit
 packing_mode = "auto"; // [auto, grid]
-// Extra gap around each cylinder for fit tolerance
+// Extra clearance added to the hole diameter for fit tolerance (total, not per-side)
 holder_clearance = 0.5; // [0:0.25:2]
 // Minimum gap between holders
 min_wall_between = 0; // [0:0.5:5]
@@ -96,17 +96,17 @@ base_gap = l_grid - base_size;  // 0.5mm gap between bases
 total_width = gridx * l_grid - base_gap;
 total_depth = gridy * l_grid - base_gap;
 
-// Full bottle footprint radius (bottle + rim + taper)
-holder_footprint_radius = (cylinder_diameter / 2) + holder_rim_thickness + holder_rim_taper;
+// Full holder footprint radius (hole + rim + taper)
+holder_footprint_radius = (cylinder_diameter / 2 + holder_clearance / 2) + holder_rim_thickness + holder_rim_taper;
 
 // Usable area for bottle placement (accounting for walls if enabled)
 usable_margin = enable_tray_wall ? tray_wall_thickness : 0;
 usable_width = total_width - usable_margin * 2;
 usable_depth = total_depth - usable_margin * 2;
 
-// Center-to-center spacing between bottles
-// Bottle spacing includes clearance and minimum wall between bottles
-holder_spacing = cylinder_diameter + holder_clearance + min_wall_between;
+// Center-to-center spacing between holes
+// Hole spacing includes fit clearance and minimum wall between holes
+holder_spacing = (cylinder_diameter + holder_clearance) + min_wall_between;
 
 // Hexagonal packing row spacing (sqrt(3)/2 ≈ 0.866)
 hex_row_spacing = holder_spacing * sqrt(3) / 2;
@@ -221,9 +221,9 @@ function generate_valid_positions() =
 function bottle_positions() = generate_valid_positions();
 
 function holder_h_total() = holder_recess_depth + holder_rim_height;
-function holder_outer_r_top() = (cylinder_diameter / 2) + holder_rim_thickness;
+function holder_outer_r_top() = ((cylinder_diameter / 2) + (holder_clearance / 2)) + holder_rim_thickness;
 function holder_outer_r_bottom() = holder_outer_r_top() + holder_rim_taper;
-function holder_hole_r() = cylinder_diameter / 2;
+function holder_hole_r() = (cylinder_diameter / 2) + (holder_clearance / 2);
 function holder_floor_z() = holder_start_z + holder_recess_depth;
 
 // Iterate centered XY positions; optionally add a base XY offset and a Z offset.
@@ -282,8 +282,8 @@ opening_width = enable_tray_wall ? (total_width - tray_wall_thickness * 2) : tot
 opening_depth = enable_tray_wall ? (total_depth - tray_wall_thickness * 2) : total_depth;
 opening_corner_r = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
 
-// True hole radius (what must not be clipped by walls/corners)
-hole_radius = cylinder_diameter / 2;
+// True hole radius incl. fit clearance (what must not be clipped by walls/corners)
+hole_radius = (cylinder_diameter / 2) + (holder_clearance / 2);
 
 // Test whether a circle of radius `rad` centered at (x,y) fits inside a rounded rectangle
 // of size (w,d) with corner radius r. Coordinates are in [0..w], [0..d].

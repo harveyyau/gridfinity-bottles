@@ -413,17 +413,14 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     t_mid = 0.8 * profile_scale + clear;
     t_top = BASE_PROFILE_MAX.x * profile_scale + clear;
 
-    // 2D shell from inner wall outward by thickness t
-    module inner_shell(t) {
+    // Expanded opening shape at the wall's inner edge (solid 2D).
+    // Using solids (not rings) avoids hull() artifacts that can look “stepped”.
+    module opening_expanded(t) {
         t2 = max(0, t);
-        // Grow the inner opening outward by t2 to define the cut shell thickness.
         inner_w0 = outer_w - wall_thickness * 2;
         inner_d0 = outer_d - wall_thickness * 2;
         inner_r0 = max(0, corner_r - wall_thickness);
-        difference() {
-            rounded_rect_2d(inner_w0 + t2 * 2, inner_d0 + t2 * 2, inner_r0 + t2);
-            rounded_rect_2d(inner_w0, inner_d0, inner_r0);
-        }
+        rounded_rect_2d(inner_w0 + t2 * 2, inner_d0 + t2 * 2, inner_r0 + t2);
     }
 
     // If there's effectively no material to engage, do nothing.
@@ -436,21 +433,21 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
             // A: big chamfer (top)
             if (segA_h > 0.001 && t_top > 0.001) {
                 hull() {
-                    translate([0, 0, 0]) linear_extrude(0.05) inner_shell(t_top);
-                    translate([0, 0, -segA_h]) linear_extrude(0.05) inner_shell(t_mid);
+                    translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
+                    translate([0, 0, -segA_h]) linear_extrude(0.05) opening_expanded(t_mid);
                 }
             }
             // B: vertical section
             if (segB_h > 0.001 && t_mid > 0.001) {
                 translate([0, 0, -segA_h - segB_h])
                 linear_extrude(segB_h)
-                inner_shell(t_mid);
+                opening_expanded(t_mid);
             }
             // C: small chamfer (bottom)
             if (segC_h > 0.001 && t_mid > 0.001) {
                 hull() {
-                    translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) inner_shell(t_mid);
-                    translate([0, 0, -receiver_depth]) linear_extrude(0.05) inner_shell(t_bot);
+                    translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
+                    translate([0, 0, -receiver_depth]) linear_extrude(0.05) opening_expanded(t_bot);
                 }
             }
         }

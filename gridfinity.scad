@@ -407,11 +407,9 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     segB_h = 1.8 * profile_scale;  // vertical
     segA_h = 2.15 * profile_scale; // big chamfer
     // NOTE: The stacked bin/base will intrude ~5mm into the receiver.
-    // We must provide clearance for the full insertion depth (BASEPLATE_LIP_HEIGHT),
-    // even if the available wall thickness forces a reduced (scaled) engagement profile.
-    receiver_depth_scaled = BASE_PROFILE_MAX.y * profile_scale;
+    // We must provide clearance for the full insertion depth (BASEPLATE_LIP_HEIGHT).
+    // We cut the pocket down the full depth, but only scale *how far into the wall* we engage.
     receiver_depth_total = BASEPLATE_LIP_HEIGHT;
-    extra_bottom_h = max(0, receiver_depth_total - receiver_depth_scaled);
 
     // Inset amounts into the wall at key Z levels (add clearance after scaling)
     //
@@ -459,16 +457,9 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
             if (segC_h > 0.001 && t_mid > 0.001) {
                 hull() {
                     translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
-                    translate([0, 0, -receiver_depth_scaled]) linear_extrude(0.05) opening_expanded(t_bot);
+                    // Extend the bottom chamfer all the way to the band bottom to avoid an extra “step band”
+                    translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
                 }
-            }
-
-            // D: extend clearance down to full insertion depth so a Gridfinity base always fits,
-            // regardless of wall thickness (no “hard stop” above the band bottom).
-            if (extra_bottom_h > 0.001 && t_bot > 0.001) {
-                translate([0, 0, -receiver_depth_total])
-                linear_extrude(extra_bottom_h)
-                opening_expanded(t_bot);
             }
         }
     }

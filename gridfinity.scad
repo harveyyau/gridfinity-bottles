@@ -394,7 +394,9 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     min_outer_wall = 0.6;
     max_cut = max(0, wall_thickness - min_outer_wall);
     // Clearance is total; apply half per side by cutting slightly deeper.
-    clear = clearance_total / 2;
+    // IMPORTANT: clearance can't exceed available wall material; clamp to avoid “receiver eats everything”
+    // or “receiver disappears” behavior when users enter large values.
+    clear = min(clearance_total / 2, max(0, max_cut - 0.05));
 
     // Preserve Gridfinity chamfer angles for *any* wall thickness by scaling the
     // full BASE_PROFILE uniformly (X and Z) to fit the available wall material.
@@ -418,8 +420,8 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     // IMPORTANT: The receiver must be wide enough at the *deepest* part of the engagement
     // to accept Gridfinity feet. Empirically this corresponds to the baseplate’s ~0.7mm
     // chamfer region (BASEPLATE_LIP[1].x) rather than “almost zero”.
-    t_mid = 0.8 * profile_scale + clear;
-    t_top = BASE_PROFILE_MAX.x * profile_scale + clear;
+    t_mid = min(max_cut, 0.8 * profile_scale + clear);
+    t_top = min(max_cut, BASE_PROFILE_MAX.x * profile_scale + clear);
     // Keep a minimum bottom inset that does NOT shrink with profile_scale:
     // otherwise thicker walls can still end up with an opening that's too small (e.g. ~35.6mm).
     t_bot_min = BASEPLATE_LIP[1].x + clear; // ~0.7mm + clearance

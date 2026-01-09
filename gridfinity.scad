@@ -38,6 +38,8 @@ enable_stacking = false;
 stacking_clearance = 0.3; // [0:0.1:2]
 // Receiver shape: spec matches Gridfinity profile; chamfer is smoother/cleaner but not spec-identical
 stacking_receiver_style = "spec"; // [spec, chamfer]
+// Minimum receiver engagement into the wall (mm). Set >0 to force a visible chamfer even when thin walls already fit.
+stacking_min_engagement = 0; // [0:0.1:2]
 
 /* [Raised Floor] */
 // Fill gaps between holders with a raised surface
@@ -411,11 +413,13 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     inner_w0 = outer_w - wall_thickness * 2;
     inner_d0 = outer_d - wall_thickness * 2;
     t_need = max(0, max((required_inner_w - inner_w0) / 2, (required_inner_d - inner_d0) / 2));
+    // Optional: force a minimum amount of engagement (for aesthetics / slight grab), even if not required for fit.
+    t_need_eff = max(t_need, stacking_min_engagement);
 
     // Base (spec) insets with NO clearance (these define the *shape*).
     top_raw = min(max_cut, BASE_PROFILE_MAX.x);     // 2.95 revealed as wall thickens
     mid_raw = min(max_cut, 0.8);                   // small chamfer shelf
-    bot_raw = min(max_cut, min(BASEPLATE_LIP[1].x, t_need)); // only widen as much as needed for fit
+    bot_raw = min(max_cut, min(BASEPLATE_LIP[1].x, t_need_eff)); // only widen as much as needed (or forced) at full depth
 
     // Apply clearance uniformly to all insets, but never beyond available material.
     clear = min(clear_req, max(0, max_cut - top_raw));
@@ -439,7 +443,7 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     }
 
     // If there's effectively no material to engage, or no widening required, do nothing.
-    if (max_cut > 0.001 && t_need > 0.001) {
+    if (max_cut > 0.001 && t_need_eff > 0.001) {
         if (stacking_receiver_style == "chamfer") {
             // Smooth/clean option: one continuous taper for the full insertion depth.
             // (Angle will vary with wall thickness; still guaranteed to fit.)

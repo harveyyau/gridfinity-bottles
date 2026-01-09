@@ -36,10 +36,6 @@ tray_wall_thickness = 2.0; // [1:0.5:4]
 enable_stacking = false;
 // Total XY clearance for stacking fit (0.2–0.6 typical; total, not per-side)
 stacking_clearance = 0.3; // [0:0.1:2]
-// Receiver shape: spec matches Gridfinity profile; chamfer is smoother/cleaner but not spec-identical
-stacking_receiver_style = "spec"; // [spec, chamfer]
-// Minimum receiver engagement into the wall (mm). Set >0 to force a visible chamfer even when thin walls already fit.
-stacking_min_engagement = 0; // [0:0.1:2]
 
 /* [Raised Floor] */
 // Fill gaps between holders with a raised surface
@@ -413,8 +409,10 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     inner_w0 = outer_w - wall_thickness * 2;
     inner_d0 = outer_d - wall_thickness * 2;
     t_need = max(0, max((required_inner_w - inner_w0) / 2, (required_inner_d - inner_d0) / 2));
-    // Optional: force a minimum amount of engagement (for aesthetics / slight grab), even if not required for fit.
-    t_need_eff = max(t_need, stacking_min_engagement);
+    // Always add a small chamfer when stackable, even if the wall is thin enough that fit is already guaranteed.
+    // This provides gentle lead-in and keeps behavior consistent across wall thicknesses.
+    min_engagement = 0.4;
+    t_need_eff = max(t_need, min_engagement);
 
     // Base (spec) insets with NO clearance (these define the *shape*).
     top_raw = min(max_cut, BASE_PROFILE_MAX.x);     // 2.95 revealed as wall thickens
@@ -442,41 +440,89 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
         rounded_rect_2d(inner_w0 + t2 * 2, inner_d0 + t2 * 2, inner_r0 + t2);
     }
 
-    // If there's effectively no material to engage, or no widening required, do nothing.
+    // Always generate a smooth chamfer receiver (no spec shelf).
     if (max_cut > 0.001 && t_need_eff > 0.001) {
-        if (stacking_receiver_style == "chamfer") {
-            // Smooth/clean option: one continuous taper for the full insertion depth.
-            // (Angle will vary with wall thickness; still guaranteed to fit.)
-            hull() {
-                translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
-                translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
-            }
-        } else {
-            // Spec-like option: two 45° chamfers with a straight section between (Gridfinity base profile).
-            union() {
-                // A: big chamfer (top)
-                if (segA_h > 0.001 && t_top > 0.001) {
-                    hull() {
-                        translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
-                        translate([0, 0, -segA_h]) linear_extrude(0.05) opening_expanded(t_mid);
-                    }
-                }
-                // B: vertical section
-                if (segB_h > 0.001 && t_mid > 0.001) {
-                    translate([0, 0, -segA_h - segB_h])
-                    linear_extrude(segB_h)
-                    opening_expanded(t_mid);
-                }
-                // C: small chamfer (bottom)
-                if (segC_h > 0.001 && t_mid > 0.001) {
-                    hull() {
-                        translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
-                        // Extend the bottom chamfer all the way to the band bottom to avoid an extra “step band”
-                        translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
-                    }
-                }
-            }
+        hull() {
+            translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
+            translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
         }
+    }
+}
+
+// Supportless alignment ramps to help center a stacking Gridfinity base.
+// These are small 45° wedges that protrude slightly inward near the very top of the stacking band.
+//
+// IMPORTANT: These ramps must attach to the *receiver opening* at the top of the band (which is widened
+// by the receiver cut). So we compute the receiver's top opening size here rather than using the raw
+// inner wall size.
+module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band_h, clearance_total=0.3, ramp_h=2.0, ramp_depth=0.6, ramp_len=12) {
+    eps = 0.05;
+    h = min(ramp_h, band_h);
+    // Ensure ramps actually *overlap* the wall (not just touch), so they union into one solid.
+    attach_overlap = 0.10;
+    if (h <= 0) {
+        // no ramps
+    } else {
+    // Compute receiver top opening (matches stacking_receiver_cut() logic)
+    min_outer_wall = 0.6;
+    max_cut = max(0, wall_thickness - min_outer_wall);
+    top_raw = min(max_cut, BASE_PROFILE_MAX.x);
+    clear_req = max(0, clearance_total / 2);
+    clear = min(clear_req, max(0, max_cut - top_raw));
+    t_top = top_raw + clear;
+
+    // Raw inner wall opening (no receiver widening)
+    inner_w0 = outer_w - wall_thickness * 2;
+    inner_d0 = outer_d - wall_thickness * 2;
+    inner_r0 = max(0, corner_r - wall_thickness);
+
+    // Receiver opening at the very top of the band (widened)
+    open_w = inner_w0 + t_top * 2;
+    open_d = inner_d0 + t_top * 2;
+    open_r = inner_r0 + t_top;
+
+    // Keep within corners
+    max_len_x = max(0, open_d - 2 * (open_r + 1));
+    max_len_y = max(0, open_w - 2 * (open_r + 1));
+    len_x = min(ramp_len, max_len_x);
+    len_y = min(ramp_len, max_len_y);
+    d = min(ramp_depth, min(open_w, open_d)/4);
+
+    // +X / -X ramps (extruded along Y)
+    if (len_x > 0) {
+        // +X face (attach at x = +open_w/2)
+        hull() {
+            translate([open_w/2 - d, -len_x/2, band_h - eps])
+            cube([d + attach_overlap, len_x, eps], center=false);
+            translate([open_w/2 - eps, -len_x/2, band_h - h])
+            cube([eps + attach_overlap, len_x, eps], center=false);
+        }
+        // -X face (attach at x = -open_w/2)
+        hull() {
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - eps])
+            cube([d + attach_overlap, len_x, eps], center=false);
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - h])
+            cube([eps + attach_overlap, len_x, eps], center=false);
+        }
+    }
+
+    // +Y / -Y ramps (extruded along X)
+    if (len_y > 0) {
+        // +Y face (attach at y = +open_d/2)
+        hull() {
+            translate([-len_y/2, open_d/2 - d, band_h - eps])
+            cube([len_y, d + attach_overlap, eps], center=false);
+            translate([-len_y/2, open_d/2 - eps, band_h - h])
+            cube([len_y, eps + attach_overlap, eps], center=false);
+        }
+        // -Y face (attach at y = -open_d/2)
+        hull() {
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - eps])
+            cube([len_y, d + attach_overlap, eps], center=false);
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - h])
+            cube([len_y, eps + attach_overlap, eps], center=false);
+        }
+    }
     }
 }
 
@@ -559,15 +605,23 @@ module build_tray_wall() {
         eps = 0.03;
 
         translate([0, 0, wall_start_z])
-        difference() {
-            linear_extrude(wall_total_height)
-            wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+        union() {
+            difference() {
+                linear_extrude(wall_total_height)
+                wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
 
-            // Receiver pocket: cut down from the *top* of the wall. The cutter itself only
-            // extends down 5mm (BASEPLATE_LIP_HEIGHT), so it only affects the added stacking band.
+                // Receiver pocket: cut down from the *top* of the wall. The cutter itself only
+                // extends down 5mm (BASEPLATE_LIP_HEIGHT), so it only affects the added stacking band.
+                if (enable_stacking && stacking_band_h > 0.01) {
+                    translate([0, 0, wall_total_height + eps])
+                    stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
+                }
+            }
+
+            // Optional alignment ramps (supportless) to center a stacked base.
             if (enable_stacking && stacking_band_h > 0.01) {
-                translate([0, 0, wall_total_height + eps])
-                stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
+                translate([0, 0, wall_total_height - stacking_band_h])
+                stacking_alignment_ramps(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_band_h, stacking_clearance);
             }
         }
     }

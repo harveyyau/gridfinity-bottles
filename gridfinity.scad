@@ -510,6 +510,14 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     if (t_need > 0.001) {
         // no ramps (receiver widening will handle alignment)
     } else {
+    // Compute how loose the fit is (lateral play). If the play is tiny, ramps are pointless noise.
+    play_w = max(0, (inner_w0 - required_inner_w) / 2);
+    play_d = max(0, (inner_d0 - required_inner_d) / 2);
+    play = max(play_w, play_d);
+    min_play_for_ramps = 0.25;
+    if (play < min_play_for_ramps) {
+        // no ramps (already effectively centered)
+    } else {
     // Compute the *actual* top opening of the pocket for the loose-fit case.
     // In the loose-fit case, stacking_receiver_cut() only adds an entrance chamfer (no widening),
     // so ramps must attach to that entrance chamfer, not to a hypothetical full receiver opening.
@@ -523,19 +531,15 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     open_d = inner_d0 + t_top * 2;
     open_r = inner_r0 + t_top;
 
-    // Compute lateral play (how loose the fit is). Use it to size the ramp depth.
-    play_w = max(0, (inner_w0 - required_inner_w) / 2);
-    play_d = max(0, (inner_d0 - required_inner_d) / 2);
-    play = max(play_w, play_d);
-
     // Keep within corners; make the ramps continuous along the whole usable side length
     max_len_x = max(0, open_d - 2 * (open_r + 1));
     max_len_y = max(0, open_w - 2 * (open_r + 1));
     len_x = max_len_x;
     len_y = max_len_y;
 
-    // Ramp depth: enough to take up the play, but capped so it never becomes bulky.
-    d = min(0.8, max(0.4, play));
+    // Ramp depth/height: scale with play so 1.0/1.5mm walls get a bigger, useful guide.
+    d = min(1.2, max(0.5, play * 1.5));
+    h = min(band_h, max(1.2, d * 2));
 
     // +X / -X ramps (extruded along Y)
     if (len_x > 0) {
@@ -598,6 +602,7 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
             translate([-len_y/2, -open_d/2 - attach_overlap, band_h - h])
             cube([len_y, eps + attach_overlap, eps], center=false);
         }
+    }
     }
     }
     }

@@ -909,18 +909,23 @@ module rounded_rect_2d(width, depth, radius) {
     assert(is_num(width) && is_num(depth) && width > 0 && depth > 0);
     assert(is_num(radius) && radius >= 0);
     r = min(radius, min(width, depth) / 2);
-    // Force enough fragments so the hull() doesn't “shrink” and create big flat facets/creases.
-    // (This is cheap: only 4 circles.)
-    // Also rotate the circle so the polygon “seam vertex” doesn't line up on the same axis
-    // (this can show up as a vertical ridge on the corner in slicers).
-    rect_fn = max(256, ceil((2 * PI * r) / $fs));
-    seam_rot = 180 / rect_fn;
-    hull() {
-        for (sx = [-1, 1])
-        for (sy = [-1, 1])
-            translate([sx * (width/2 - r), sy * (depth/2 - r)])
-            rotate(seam_rot)
-            circle(r = r, $fn = rect_fn);
+    if (r <= 0) {
+        // Avoid degenerate hull(circle(r=0)) which can produce empty geometry and “brick” artifacts.
+        square([width, depth], center = true);
+    } else {
+        // Force enough fragments so the hull() doesn't “shrink” and create big flat facets/creases.
+        // (This is cheap: only 4 circles.)
+        // Also rotate the circle so the polygon “seam vertex” doesn't line up on the same axis
+        // (this can show up as a vertical ridge on the corner in slicers).
+        rect_fn = max(256, ceil((2 * PI * r) / $fs));
+        seam_rot = 180 / rect_fn;
+        hull() {
+            for (sx = [-1, 1])
+            for (sy = [-1, 1])
+                translate([sx * (width/2 - r), sy * (depth/2 - r)])
+                rotate(seam_rot)
+                circle(r = r, $fn = rect_fn);
+        }
     }
 }
 

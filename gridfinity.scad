@@ -540,12 +540,12 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
         // no ramps (already effectively centered)
     } else {
 
-    // Keep within corners; shorten ramps for cleaner look (not continuous full side)
+    // Keep within corners; scale ramp length with grid size
     max_len_x = max(0, open_d - 2 * (open_r + 1));
     max_len_y = max(0, open_w - 2 * (open_r + 1));
-    target_ramp_len = 15; // mm
-    len_x = min(target_ramp_len, max_len_x);
-    len_y = min(target_ramp_len, max_len_y);
+    // Use ~50% of available side, capped at 35mm (scales from 1x1 to big grids)
+    len_x = min(35, max(12, max_len_x * 0.5));
+    len_y = min(35, max(12, max_len_y * 0.5));
 
     // Ramp depth/height: take up the play so it actually engages, but keep it supportless.
     // TOP face matches Gridfinity: 45° (depth == height).

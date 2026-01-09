@@ -508,13 +508,15 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     inner_d0 = outer_d - wall_thickness * 2;
     inner_r0 = max(0, corner_r - wall_thickness);
 
-    // Only add ramps if widening is actually required for fit.
+    // Alignment ramps are most useful when the fit is *loose* (thin walls): the base fits without widening,
+    // but has lateral play. When widening is required (thicker walls), the receiver itself provides alignment,
+    // so we skip ramps to avoid unnecessary features.
     foot_inset = BASE_PROFILE_MAX.x - BASEPLATE_LIP[1].x; // 2.25
     required_inner_w = outer_w - 2 * foot_inset + clearance_total;
     required_inner_d = outer_d - 2 * foot_inset + clearance_total;
     t_need = max(0, max((required_inner_w - inner_w0) / 2, (required_inner_d - inner_d0) / 2));
-    if (t_need <= 0.001) {
-        // no ramps (nothing to align against)
+    if (t_need > 0.001) {
+        // no ramps (receiver widening will handle alignment)
     } else {
 
     // Receiver opening at the very top of the band (widened)

@@ -470,7 +470,8 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
             }
         } else {
             // No receiver widening required: add a shallow entrance chamfer only (supportless, no deep shelf).
-            entry = min(0.4, max_cut); // ~0.4mm 45° lead-in
+            // Match Gridfinity's small chamfer size (0.8mm @ 45°) for consistent top engagement.
+            entry = min(0.8, max_cut);
             if (entry > 0.01) {
                 hull() {
                     translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(entry);
@@ -514,7 +515,8 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     play_w = max(0, (inner_w0 - required_inner_w) / 2);
     play_d = max(0, (inner_d0 - required_inner_d) / 2);
     play = max(play_w, play_d);
-    min_play_for_ramps = 0.25;
+    // Lower threshold: even ~0.1mm per-side play is enough to feel sloppy in real prints.
+    min_play_for_ramps = 0.08;
     if (play < min_play_for_ramps) {
         // no ramps (already effectively centered)
     } else {
@@ -523,7 +525,7 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     // so ramps must attach to that entrance chamfer, not to a hypothetical full receiver opening.
     min_outer_wall = 0.6;
     max_cut = max(0, wall_thickness - min_outer_wall);
-    entry = min(0.4, max_cut); // matches stacking_receiver_cut() entrance chamfer
+    entry = min(0.8, max_cut); // matches stacking_receiver_cut() entrance chamfer
     t_top = entry;
 
     // Receiver opening at the very top of the band (widened)

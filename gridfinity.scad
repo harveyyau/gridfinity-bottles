@@ -426,9 +426,12 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     t_bot = bot_raw + clear;
 
     // Segment heights (45°) depend only on the *raw* insets (shape reveal), not clearance.
-    segA_h = min(2.15, max(0, top_raw - mid_raw));
-    segB_h = (max_cut >= 0.8) ? 1.8 : 0;
-    segC_h = min(0.8, max(0, mid_raw - bot_raw));
+    // This preserves the Gridfinity chamfer angles as wall thickness reveals more.
+    segA_h = min(2.15, max(0, top_raw - mid_raw)); // big chamfer (<=2.15)
+    segB_h = (max_cut >= 0.8) ? 1.8 : 0;           // vertical section (only if we can reach 0.8 inset)
+    segC_h = min(0.8, max(0, mid_raw - bot_raw));  // small chamfer (<=0.8)
+    receiver_profile_depth = min(BASE_PROFILE_MAX.y, segA_h + segB_h + segC_h); // <=4.75
+    extra_depth = max(0, receiver_depth_total - receiver_profile_depth);        // usually 0.25
 
     // Expanded opening shape at the wall's inner edge (solid 2D).
     // Using solids (not rings) avoids hull() artifacts that can look “stepped”.
@@ -440,11 +443,36 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
         rounded_rect_2d(inner_w0 + t2 * 2, inner_d0 + t2 * 2, inner_r0 + t2);
     }
 
-    // Always generate a smooth chamfer receiver (no spec shelf).
+    // Generate a spec-like receiver: two 45° chamfers with an (optional) straight section.
+    // This avoids the “over-beveled wall” look from a full-height taper and matches Gridfinity intent.
     if (max_cut > 0.001 && t_need_eff > 0.001) {
-        hull() {
-            translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
-            translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
+        union() {
+            // A: big chamfer (top)
+            if (segA_h > 0.001 && t_top > 0.001) {
+                hull() {
+                    translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
+                    translate([0, 0, -segA_h]) linear_extrude(0.05) opening_expanded(t_mid);
+                }
+            }
+            // B: vertical section
+            if (segB_h > 0.001 && t_mid > 0.001) {
+                translate([0, 0, -segA_h - segB_h])
+                linear_extrude(segB_h)
+                opening_expanded(t_mid);
+            }
+            // C: small chamfer (bottom)
+            if (segC_h > 0.001 && t_mid > 0.001) {
+                hull() {
+                    translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
+                    translate([0, 0, -receiver_profile_depth]) linear_extrude(0.05) opening_expanded(t_bot);
+                }
+            }
+            // D: extend the cut to the full 5mm insertion depth (keeps fit consistent)
+            if (extra_depth > 0.001 && t_bot > 0.001) {
+                translate([0, 0, -receiver_depth_total])
+                linear_extrude(extra_depth)
+                opening_expanded(t_bot);
+            }
         }
     }
 }
@@ -490,16 +518,30 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
 
     // +X / -X ramps (extruded along Y)
     if (len_x > 0) {
+        // 3-stage ramp: 0 -> depth -> 0 (adds a top chamfer as well)
+        top_ch = min(0.6, h/2);
         // +X face (attach at x = +open_w/2)
         hull() {
-            translate([open_w/2 - d, -len_x/2, band_h - eps])
+            translate([open_w/2 - eps, -len_x/2, band_h])
+            cube([eps + attach_overlap, len_x, eps], center=false);
+            translate([open_w/2 - d, -len_x/2, band_h - top_ch])
+            cube([d + attach_overlap, len_x, eps], center=false);
+        }
+        hull() {
+            translate([open_w/2 - d, -len_x/2, band_h - top_ch])
             cube([d + attach_overlap, len_x, eps], center=false);
             translate([open_w/2 - eps, -len_x/2, band_h - h])
             cube([eps + attach_overlap, len_x, eps], center=false);
         }
         // -X face (attach at x = -open_w/2)
         hull() {
-            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - eps])
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h])
+            cube([eps + attach_overlap, len_x, eps], center=false);
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - top_ch])
+            cube([d + attach_overlap, len_x, eps], center=false);
+        }
+        hull() {
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - top_ch])
             cube([d + attach_overlap, len_x, eps], center=false);
             translate([-open_w/2 - attach_overlap, -len_x/2, band_h - h])
             cube([eps + attach_overlap, len_x, eps], center=false);
@@ -508,16 +550,29 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
 
     // +Y / -Y ramps (extruded along X)
     if (len_y > 0) {
+        top_ch = min(0.6, h/2);
         // +Y face (attach at y = +open_d/2)
         hull() {
-            translate([-len_y/2, open_d/2 - d, band_h - eps])
+            translate([-len_y/2, open_d/2 - eps, band_h])
+            cube([len_y, eps + attach_overlap, eps], center=false);
+            translate([-len_y/2, open_d/2 - d, band_h - top_ch])
+            cube([len_y, d + attach_overlap, eps], center=false);
+        }
+        hull() {
+            translate([-len_y/2, open_d/2 - d, band_h - top_ch])
             cube([len_y, d + attach_overlap, eps], center=false);
             translate([-len_y/2, open_d/2 - eps, band_h - h])
             cube([len_y, eps + attach_overlap, eps], center=false);
         }
         // -Y face (attach at y = -open_d/2)
         hull() {
-            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - eps])
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h])
+            cube([len_y, eps + attach_overlap, eps], center=false);
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - top_ch])
+            cube([len_y, d + attach_overlap, eps], center=false);
+        }
+        hull() {
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - top_ch])
             cube([len_y, d + attach_overlap, eps], center=false);
             translate([-len_y/2, -open_d/2 - attach_overlap, band_h - h])
             cube([len_y, eps + attach_overlap, eps], center=false);

@@ -415,12 +415,12 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
 
     // Base (spec) insets with NO clearance (these define the *shape*).
     top_raw = min(max_cut, BASE_PROFILE_MAX.x);     // up to 2.95 revealed as wall thickens
-    mid_raw = min(max_cut, 0.8);                   // 0.8mm chamfer/shelf region
+    mid_raw_base = min(max_cut, 0.8);              // 0.8mm chamfer/shelf region
     // CRITICAL: at full insertion depth the opening must fit the Gridfinity foot (~37mm).
     // So when widening is required, we must allow bot_raw to grow beyond 0.7mm/side.
     bot_raw = min(max_cut, t_need_eff);
     // Ensure monotonic opening (top >= mid >= bottom) so we never invert the bevel.
-    mid_raw = max(mid_raw, bot_raw);
+    mid_raw = max(mid_raw_base, bot_raw);
 
     // Apply clearance uniformly to all insets, but never beyond available material.
     clear = min(clear_req, max(0, max_cut - top_raw));

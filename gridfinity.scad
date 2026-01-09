@@ -495,14 +495,6 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     if (h <= 0) {
         // no ramps
     } else {
-    // Compute receiver top opening (matches stacking_receiver_cut() logic)
-    min_outer_wall = 0.6;
-    max_cut = max(0, wall_thickness - min_outer_wall);
-    top_raw = min(max_cut, BASE_PROFILE_MAX.x);
-    clear_req = max(0, clearance_total / 2);
-    clear = min(clear_req, max(0, max_cut - top_raw));
-    t_top = top_raw + clear;
-
     // Raw inner wall opening (no receiver widening)
     inner_w0 = outer_w - wall_thickness * 2;
     inner_d0 = outer_d - wall_thickness * 2;
@@ -518,6 +510,13 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     if (t_need > 0.001) {
         // no ramps (receiver widening will handle alignment)
     } else {
+    // Compute the *actual* top opening of the pocket for the loose-fit case.
+    // In the loose-fit case, stacking_receiver_cut() only adds an entrance chamfer (no widening),
+    // so ramps must attach to that entrance chamfer, not to a hypothetical full receiver opening.
+    min_outer_wall = 0.6;
+    max_cut = max(0, wall_thickness - min_outer_wall);
+    entry = min(0.4, max_cut); // matches stacking_receiver_cut() entrance chamfer
+    t_top = entry;
 
     // Receiver opening at the very top of the band (widened)
     open_w = inner_w0 + t_top * 2;

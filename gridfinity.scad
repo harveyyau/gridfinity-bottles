@@ -511,15 +511,6 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     if (t_need > 0.001) {
         // no ramps (receiver widening will handle alignment)
     } else {
-    // Compute how loose the fit is (lateral play). If the play is tiny, ramps are pointless noise.
-    play_w = max(0, (inner_w0 - required_inner_w) / 2);
-    play_d = max(0, (inner_d0 - required_inner_d) / 2);
-    play = max(play_w, play_d);
-    // Lower threshold: even ~0.1mm per-side play is enough to feel sloppy in real prints.
-    min_play_for_ramps = 0.08;
-    if (play < min_play_for_ramps) {
-        // no ramps (already effectively centered)
-    } else {
     // Compute the *actual* top opening of the pocket for the loose-fit case.
     // In the loose-fit case, stacking_receiver_cut() only adds an entrance chamfer (no widening),
     // so ramps must attach to that entrance chamfer, not to a hypothetical full receiver opening.
@@ -533,17 +524,25 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     open_d = inner_d0 + t_top * 2;
     open_r = inner_r0 + t_top;
 
+    // Compute how loose the fit is at the *top opening* (entry chamfer increases opening).
+    play_w = max(0, (open_w - required_inner_w) / 2);
+    play_d = max(0, (open_d - required_inner_d) / 2);
+    play = max(play_w, play_d);
+    min_play_for_ramps = 0.08;
+    if (play < min_play_for_ramps) {
+        // no ramps (already effectively centered)
+    } else {
+
     // Keep within corners; make the ramps continuous along the whole usable side length
     max_len_x = max(0, open_d - 2 * (open_r + 1));
     max_len_y = max(0, open_w - 2 * (open_r + 1));
     len_x = max_len_x;
     len_y = max_len_y;
 
-    // Ramp depth/height: scale with play, but keep a useful minimum so thin-wall alignment is noticeable.
+    // Ramp depth/height: take up the play so it actually engages.
     // TOP face matches Gridfinity: 45° (depth == height).
-    // Bottom face is just a supportless return (also 45°) so there are no overhangs.
-    d0 = min(1.4, max(0.8, play * 2.0));
-    d = min(d0, h / 2, band_h / 2);
+    // Bottom face is supportless (also 45°).
+    d = min(play, 2.2, h / 2, band_h / 2);
     top_h = d;
     bot_h = d;
 

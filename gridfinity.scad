@@ -491,10 +491,9 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
 module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band_h, clearance_total=0.3, ramp_h=3.0) {
     eps = 0.05;
     h = min(ramp_h, band_h);
-    // Leave the very top surface of the stacking band clear so the stacked bin can fully seat flush.
-    // Otherwise the ramps can “jack up” the upper bin and create a visible gap.
-    top_seat_clearance = 0.20;
-    top_plane = max(0, band_h - top_seat_clearance);
+    // IMPORTANT: do not protrude into the cavity at the exact top seating plane.
+    // We keep the very top “anchor” of the ramp inside the wall material (not inside the opening),
+    // so the stacked bin can fully seat flush while the ramp still starts exactly at the bevel entrance.
     // Ensure ramps actually *overlap* the wall (not just touch), so they union into one solid.
     attach_overlap = 0.10;
     if (h <= 0) {
@@ -555,28 +554,31 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
         // 3-stage ramp: 0 -> depth -> 0 (all supportless)
         // +X face (attach at x = +open_w/2)
         hull() {
-            translate([open_w/2 - eps, -len_x/2, top_plane])
+            // Top anchor: entirely in the wall (starts at the opening boundary)
+            translate([open_w/2, -len_x/2, band_h])
             cube([eps + attach_overlap, len_x, eps], center=false);
-            translate([open_w/2 - d, -len_x/2, top_plane - top_h])
+            // Downward 45° ramp into the cavity
+            translate([open_w/2 - d, -len_x/2, band_h - top_h])
             cube([d + attach_overlap, len_x, eps], center=false);
         }
         hull() {
-            translate([open_w/2 - d, -len_x/2, top_plane - top_h])
+            translate([open_w/2 - d, -len_x/2, band_h - top_h])
             cube([d + attach_overlap, len_x, eps], center=false);
-            translate([open_w/2 - eps, -len_x/2, top_plane - top_h - bot_h])
+            translate([open_w/2 - eps, -len_x/2, band_h - top_h - bot_h])
             cube([eps + attach_overlap, len_x, eps], center=false);
         }
         // -X face (attach at x = -open_w/2)
         hull() {
-            translate([-open_w/2 - attach_overlap, -len_x/2, top_plane])
+            // Top anchor: entirely in the wall
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h])
             cube([eps + attach_overlap, len_x, eps], center=false);
-            translate([-open_w/2 - attach_overlap, -len_x/2, top_plane - top_h])
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - top_h])
             cube([d + attach_overlap, len_x, eps], center=false);
         }
         hull() {
-            translate([-open_w/2 - attach_overlap, -len_x/2, top_plane - top_h])
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - top_h])
             cube([d + attach_overlap, len_x, eps], center=false);
-            translate([-open_w/2 - attach_overlap, -len_x/2, top_plane - top_h - bot_h])
+            translate([-open_w/2 - attach_overlap, -len_x/2, band_h - top_h - bot_h])
             cube([eps + attach_overlap, len_x, eps], center=false);
         }
     }
@@ -586,28 +588,28 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
         // 3-stage ramp: 0 -> depth -> 0 (supportless)
         // +Y face (attach at y = +open_d/2)
         hull() {
-            translate([-len_y/2, open_d/2 - eps, top_plane])
+            translate([-len_y/2, open_d/2, band_h])
             cube([len_y, eps + attach_overlap, eps], center=false);
-            translate([-len_y/2, open_d/2 - d, top_plane - top_h])
+            translate([-len_y/2, open_d/2 - d, band_h - top_h])
             cube([len_y, d + attach_overlap, eps], center=false);
         }
         hull() {
-            translate([-len_y/2, open_d/2 - d, top_plane - top_h])
+            translate([-len_y/2, open_d/2 - d, band_h - top_h])
             cube([len_y, d + attach_overlap, eps], center=false);
-            translate([-len_y/2, open_d/2 - eps, top_plane - top_h - bot_h])
+            translate([-len_y/2, open_d/2 - eps, band_h - top_h - bot_h])
             cube([len_y, eps + attach_overlap, eps], center=false);
         }
         // -Y face (attach at y = -open_d/2)
         hull() {
-            translate([-len_y/2, -open_d/2 - attach_overlap, top_plane])
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h])
             cube([len_y, eps + attach_overlap, eps], center=false);
-            translate([-len_y/2, -open_d/2 - attach_overlap, top_plane - top_h])
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - top_h])
             cube([len_y, d + attach_overlap, eps], center=false);
         }
         hull() {
-            translate([-len_y/2, -open_d/2 - attach_overlap, top_plane - top_h])
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - top_h])
             cube([len_y, d + attach_overlap, eps], center=false);
-            translate([-len_y/2, -open_d/2 - attach_overlap, top_plane - top_h - bot_h])
+            translate([-len_y/2, -open_d/2 - attach_overlap, band_h - top_h - bot_h])
             cube([len_y, eps + attach_overlap, eps], center=false);
         }
     }

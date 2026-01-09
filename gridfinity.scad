@@ -409,15 +409,14 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     inner_w0 = outer_w - wall_thickness * 2;
     inner_d0 = outer_d - wall_thickness * 2;
     t_need = max(0, max((required_inner_w - inner_w0) / 2, (required_inner_d - inner_d0) / 2));
-    // Always add a small chamfer when stackable, even if the wall is thin enough that fit is already guaranteed.
-    // This provides gentle lead-in and keeps behavior consistent across wall thicknesses.
-    min_engagement = 0.4;
-    t_need_eff = max(t_need, min_engagement);
+    // We only widen the receiver if we actually need to for fit.
+    // If not needed, we still add a small *entrance-only* chamfer (shallow, no deep shelf).
+    t_need_eff = t_need;
 
     // Base (spec) insets with NO clearance (these define the *shape*).
     top_raw = min(max_cut, BASE_PROFILE_MAX.x);     // 2.95 revealed as wall thickens
     mid_raw = min(max_cut, 0.8);                   // small chamfer shelf
-    bot_raw = min(max_cut, min(BASEPLATE_LIP[1].x, t_need_eff)); // only widen as much as needed (or forced) at full depth
+    bot_raw = min(max_cut, min(BASEPLATE_LIP[1].x, t_need_eff)); // only widen as much as needed at full depth
 
     // Apply clearance uniformly to all insets, but never beyond available material.
     clear = min(clear_req, max(0, max_cut - top_raw));
@@ -430,8 +429,8 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     segA_h = min(2.15, max(0, top_raw - mid_raw)); // big chamfer (<=2.15)
     segB_h = (max_cut >= 0.8) ? 1.8 : 0;           // vertical section (only if we can reach 0.8 inset)
     segC_h = min(0.8, max(0, mid_raw - bot_raw));  // small chamfer (<=0.8)
-    receiver_profile_depth = min(BASE_PROFILE_MAX.y, segA_h + segB_h + segC_h); // <=4.75
-    extra_depth = max(0, receiver_depth_total - receiver_profile_depth);        // usually 0.25
+    // We avoid a “double cut line” by extending the bottom segment to the full insertion depth,
+    // rather than doing a second separate extension.
 
     // Expanded opening shape at the wall's inner edge (solid 2D).
     // Using solids (not rings) avoids hull() artifacts that can look “stepped”.
@@ -443,35 +442,40 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
         rounded_rect_2d(inner_w0 + t2 * 2, inner_d0 + t2 * 2, inner_r0 + t2);
     }
 
-    // Generate a spec-like receiver: two 45° chamfers with an (optional) straight section.
-    // This avoids the “over-beveled wall” look from a full-height taper and matches Gridfinity intent.
-    if (max_cut > 0.001 && t_need_eff > 0.001) {
-        union() {
-            // A: big chamfer (top)
-            if (segA_h > 0.001 && t_top > 0.001) {
-                hull() {
-                    translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
-                    translate([0, 0, -segA_h]) linear_extrude(0.05) opening_expanded(t_mid);
+    if (max_cut > 0.001) {
+        if (t_need_eff > 0.001) {
+            // Receiver needed for fit: spec-like (two 45° chamfers + optional vertical),
+            // with the bottom segment reaching the full 5mm insertion depth (no extra “second profile”).
+            union() {
+                // A: big chamfer (top)
+                if (segA_h > 0.001 && t_top > 0.001) {
+                    hull() {
+                        translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(t_top);
+                        translate([0, 0, -segA_h]) linear_extrude(0.05) opening_expanded(t_mid);
+                    }
+                }
+                // B: vertical section
+                if (segB_h > 0.001 && t_mid > 0.001) {
+                    translate([0, 0, -segA_h - segB_h])
+                    linear_extrude(segB_h)
+                    opening_expanded(t_mid);
+                }
+                // C: bottom segment (extends to full depth)
+                if (t_mid > 0.001) {
+                    hull() {
+                        translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
+                        translate([0, 0, -receiver_depth_total]) linear_extrude(0.05) opening_expanded(t_bot);
+                    }
                 }
             }
-            // B: vertical section
-            if (segB_h > 0.001 && t_mid > 0.001) {
-                translate([0, 0, -segA_h - segB_h])
-                linear_extrude(segB_h)
-                opening_expanded(t_mid);
-            }
-            // C: small chamfer (bottom)
-            if (segC_h > 0.001 && t_mid > 0.001) {
+        } else {
+            // No receiver widening required: add a shallow entrance chamfer only (supportless, no deep shelf).
+            entry = min(0.4, max_cut); // ~0.4mm 45° lead-in
+            if (entry > 0.01) {
                 hull() {
-                    translate([0, 0, -segA_h - segB_h]) linear_extrude(0.05) opening_expanded(t_mid);
-                    translate([0, 0, -receiver_profile_depth]) linear_extrude(0.05) opening_expanded(t_bot);
+                    translate([0, 0, 0]) linear_extrude(0.05) opening_expanded(entry);
+                    translate([0, 0, -entry]) linear_extrude(0.05) opening_expanded(0);
                 }
-            }
-            // D: extend the cut to the full 5mm insertion depth (keeps fit consistent)
-            if (extra_depth > 0.001 && t_bot > 0.001) {
-                translate([0, 0, -receiver_depth_total])
-                linear_extrude(extra_depth)
-                opening_expanded(t_bot);
             }
         }
     }
@@ -503,6 +507,15 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     inner_w0 = outer_w - wall_thickness * 2;
     inner_d0 = outer_d - wall_thickness * 2;
     inner_r0 = max(0, corner_r - wall_thickness);
+
+    // Only add ramps if widening is actually required for fit.
+    foot_inset = BASE_PROFILE_MAX.x - BASEPLATE_LIP[1].x; // 2.25
+    required_inner_w = outer_w - 2 * foot_inset + clearance_total;
+    required_inner_d = outer_d - 2 * foot_inset + clearance_total;
+    t_need = max(0, max((required_inner_w - inner_w0) / 2, (required_inner_d - inner_d0) / 2));
+    if (t_need <= 0.001) {
+        // no ramps (nothing to align against)
+    } else {
 
     // Receiver opening at the very top of the band (widened)
     open_w = inner_w0 + t_top * 2;
@@ -577,6 +590,7 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
             translate([-len_y/2, -open_d/2 - attach_overlap, band_h - h])
             cube([len_y, eps + attach_overlap, eps], center=false);
         }
+    }
     }
     }
 }

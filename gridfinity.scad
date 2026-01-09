@@ -19,29 +19,31 @@ gridx = 2; // [1:0.5:8]
 // Gridfinity units deep (1 unit = 42mm)
 gridy = 2; // [1:0.5:8]
 
-/* [Cylinder Size] */
-// Diameter of your cylinder (measured)
+/* [Fit & Holders] */
+// Diameter of your cylinder (measured with calipers)
 cylinder_diameter = 32; // [10:0.1:100]
+// Extra clearance added to the hole diameter (total, not per-side)
+holder_clearance = 0.5; // [0:0.05:2]
 // How tall to make the holder rim (keeps cylinders upright)
 holder_rim_height = 15; // [5:0.1:50]
 
-/* [Outer Wall] */
-// Add walls around the tray (for lifting out of drawer)
+/* [Tray Walls] */
+// Add walls around the tray (for lifting out of drawers)
 enable_tray_wall = false;
-// Height of your cylinders (wall will be this tall)
-object_height = 50; // [5:0.5:150]
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
-// Add Gridfinity stacking receiver on top of the wall (adds ~5mm extra height so object_height stays usable when stacked)
+// Height of your cylinders (wall will be this tall; stacking adds ~5mm automatically)
+object_height = 30; // [5:0.5:150]
+// Make tray stackable (adds receiver + ~5mm height)
 enable_stacking = false;
-// Total XY clearance for stacking fit (0.2–0.6 typical; total, not per-side)
-stacking_clearance = 0.3; // [0:0.1:2]
+// Total XY clearance for stacking fit (typical 0.3–0.6; total, not per-side)
+stacking_clearance = 0.3; // [0:0.05:2]
 
-/* [Raised Floor] */
-// Fill gaps between holders with a raised surface
+/* [Advanced: Raised Floor] */
+// Fill gaps between holders with a raised surface (cosmetic / easier cleaning)
 enable_raised_floor = false;
-// Floor height (set equal to holder_rim_height for flush surface)
-raised_floor_height = 15; // [1:0.1:30]
+// Floor height above holder floor (set equal to holder_rim_height for flush surface)
+raised_floor_height = 15; // [0:0.1:30]
 
 /* [Advanced: Holder Details] */
 // Wall thickness around each holder
@@ -54,8 +56,6 @@ holder_recess_depth = 0.9; // [0:0.1:3]
 /* [Advanced: Spacing] */
 // How cylinders are arranged: auto picks the best fit
 packing_mode = "auto"; // [auto, grid]
-// Extra clearance added to the hole diameter for fit tolerance (total, not per-side)
-holder_clearance = 0.5; // [0:0.25:2]
 // Minimum gap between holders
 min_wall_between = 0; // [0:0.5:5]
 

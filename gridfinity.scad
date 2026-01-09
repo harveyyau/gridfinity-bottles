@@ -402,10 +402,20 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
     // Receiver depth: stacked Gridfinity base inserts about 5mm.
     receiver_depth_total = BASEPLATE_LIP_HEIGHT; // 5
 
+    // If the existing inner opening already fits the incoming Gridfinity base at insertion depth,
+    // don't modify the wall at all. This preserves the original wall profile and avoids a pointless
+    // "boundary shelf" in cases where there would be no contact anyway.
+    foot_inset = BASE_PROFILE_MAX.x - BASEPLATE_LIP[1].x; // 2.95 - 0.7 = 2.25
+    required_inner_w = outer_w - 2 * foot_inset + clearance_total;
+    required_inner_d = outer_d - 2 * foot_inset + clearance_total;
+    inner_w0 = outer_w - wall_thickness * 2;
+    inner_d0 = outer_d - wall_thickness * 2;
+    t_need = max(0, max((required_inner_w - inner_w0) / 2, (required_inner_d - inner_d0) / 2));
+
     // Base (spec) insets with NO clearance (these define the *shape*).
     top_raw = min(max_cut, BASE_PROFILE_MAX.x);     // 2.95 revealed as wall thickens
     mid_raw = min(max_cut, 0.8);                   // small chamfer shelf
-    bot_raw = min(max_cut, BASEPLATE_LIP[1].x);    // ~0.7 ensures feet fit at full depth
+    bot_raw = min(max_cut, min(BASEPLATE_LIP[1].x, t_need)); // only widen as much as needed for fit
 
     // Apply clearance uniformly to all insets, but never beyond available material.
     clear = min(clear_req, max(0, max_cut - top_raw));
@@ -428,8 +438,8 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
         rounded_rect_2d(inner_w0 + t2 * 2, inner_d0 + t2 * 2, inner_r0 + t2);
     }
 
-    // If there's effectively no material to engage, do nothing.
-    if (max_cut > 0.001) {
+    // If there's effectively no material to engage, or no widening required, do nothing.
+    if (max_cut > 0.001 && t_need > 0.001) {
         if (stacking_receiver_style == "chamfer") {
             // Smooth/clean option: one continuous taper for the full insertion depth.
             // (Angle will vary with wall thickness; still guaranteed to fit.)

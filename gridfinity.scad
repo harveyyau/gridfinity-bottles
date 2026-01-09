@@ -488,7 +488,7 @@ module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearan
 // IMPORTANT: These ramps must attach to the *receiver opening* at the top of the band (which is widened
 // by the receiver cut). So we compute the receiver's top opening size here rather than using the raw
 // inner wall size.
-module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band_h, clearance_total=0.3, ramp_h=2.0) {
+module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band_h, clearance_total=0.3, ramp_h=3.0) {
     eps = 0.05;
     h = min(ramp_h, band_h);
     // Ensure ramps actually *overlap* the wall (not just touch), so they union into one solid.
@@ -539,10 +539,10 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     len_x = max_len_x;
     len_y = max_len_y;
 
-    // Ramp depth/height: scale with play so 1.0/1.5mm walls get a bigger, useful guide.
-    // Make the TOP face match Gridfinity exactly: 45° (depth == height).
+    // Ramp depth/height: scale with play, but keep a useful minimum so thin-wall alignment is noticeable.
+    // TOP face matches Gridfinity: 45° (depth == height).
     // Bottom face is just a supportless return (also 45°) so there are no overhangs.
-    d0 = min(1.2, max(0.5, play * 1.5));
+    d0 = min(1.4, max(0.8, play * 2.0));
     d = min(d0, h / 2, band_h / 2);
     top_h = d;
     bot_h = d;

@@ -59,6 +59,10 @@ packing_mode = "auto"; // [auto, grid]
 // Minimum gap between holders
 min_wall_between = 0; // [0:0.5:5]
 
+/* [Advanced: Stacking] */
+// Alignment ramp length as % of usable side (0–100)
+stacking_ramp_length_percent = 50; // [10:5:100]
+
 /* [Advanced: Rendering] */
 // Curve detail in mm (smaller = smoother, slower)
 curve_detail = 2; // [0.25:0.25:5]
@@ -543,9 +547,10 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     // Keep within corners; scale ramp length with grid size
     max_len_x = max(0, open_d - 2 * (open_r + 1));
     max_len_y = max(0, open_w - 2 * (open_r + 1));
-    // Use ~50% of available side (scales from 1x1 to large grids)
-    len_x = max(12, max_len_x * 0.5);
-    len_y = max(12, max_len_y * 0.5);
+    // Use specified % of available side (scales from 1x1 to large grids)
+    ramp_scale = stacking_ramp_length_percent / 100;
+    len_x = max(12, max_len_x * ramp_scale);
+    len_y = max(12, max_len_y * ramp_scale);
 
     // Ramp depth/height: take up the play so it actually engages, but keep it supportless.
     // TOP face matches Gridfinity: 45° (depth == height).

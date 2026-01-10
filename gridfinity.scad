@@ -563,32 +563,33 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     if (len_x > 0) {
         end_ch = min(1.0, len_x / 3); // chamfer on short ends
         // 3-stage ramp: 0 -> depth -> 0 (all supportless)
-        // +X face (attach at x = +open_w/2)
+        // Ramps start at the INNER WALL (where bevel begins) and extend inward
+        // +X face (start at x = +inner_w0/2)
         hull() {
-            // Top anchor: entirely in the wall; inset at ends for chamfer
-            translate([open_w/2, -len_x/2 + end_ch, band_h])
+            // Top anchor at inner wall surface
+            translate([inner_w0/2, -len_x/2 + end_ch, band_h])
             cube([eps + attach_overlap, len_x - 2*end_ch, eps], center=false);
             // Downward 45° ramp into the cavity
-            translate([open_w/2 - d, -len_x/2 + end_ch, band_h - top_h])
+            translate([inner_w0/2 - d, -len_x/2 + end_ch, band_h - top_h])
             cube([d + attach_overlap, len_x - 2*end_ch, eps], center=false);
         }
         hull() {
-            translate([open_w/2 - d, -len_x/2 + end_ch, band_h - top_h])
+            translate([inner_w0/2 - d, -len_x/2 + end_ch, band_h - top_h])
             cube([d + attach_overlap, len_x - 2*end_ch, eps], center=false);
-            translate([open_w/2 - eps, -len_x/2 + end_ch, band_h - top_h - bot_h])
+            translate([inner_w0/2 - eps, -len_x/2 + end_ch, band_h - top_h - bot_h])
             cube([eps + attach_overlap, len_x - 2*end_ch, eps], center=false);
         }
-        // -X face (attach at x = -open_w/2)
+        // -X face (start at x = -inner_w0/2)
         hull() {
-            translate([-open_w/2 - attach_overlap, -len_x/2 + end_ch, band_h])
+            translate([-inner_w0/2 - attach_overlap, -len_x/2 + end_ch, band_h])
             cube([eps + attach_overlap, len_x - 2*end_ch, eps], center=false);
-            translate([-open_w/2 - attach_overlap, -len_x/2 + end_ch, band_h - top_h])
+            translate([-inner_w0/2 - attach_overlap, -len_x/2 + end_ch, band_h - top_h])
             cube([d + attach_overlap, len_x - 2*end_ch, eps], center=false);
         }
         hull() {
-            translate([-open_w/2 - attach_overlap, -len_x/2 + end_ch, band_h - top_h])
+            translate([-inner_w0/2 - attach_overlap, -len_x/2 + end_ch, band_h - top_h])
             cube([d + attach_overlap, len_x - 2*end_ch, eps], center=false);
-            translate([-open_w/2 - attach_overlap, -len_x/2 + end_ch, band_h - top_h - bot_h])
+            translate([-inner_w0/2 - attach_overlap, -len_x/2 + end_ch, band_h - top_h - bot_h])
             cube([eps + attach_overlap, len_x - 2*end_ch, eps], center=false);
         }
     }
@@ -597,30 +598,31 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
     if (len_y > 0) {
         end_ch_y = min(1.0, len_y / 3);
         // 3-stage ramp: 0 -> depth -> 0 (supportless)
-        // +Y face (attach at y = +open_d/2)
+        // Ramps start at the INNER WALL (where bevel begins) and extend inward
+        // +Y face (start at y = +inner_d0/2)
         hull() {
-            translate([-len_y/2 + end_ch_y, open_d/2, band_h])
+            translate([-len_y/2 + end_ch_y, inner_d0/2, band_h])
             cube([len_y - 2*end_ch_y, eps + attach_overlap, eps], center=false);
-            translate([-len_y/2 + end_ch_y, open_d/2 - d, band_h - top_h])
+            translate([-len_y/2 + end_ch_y, inner_d0/2 - d, band_h - top_h])
             cube([len_y - 2*end_ch_y, d + attach_overlap, eps], center=false);
         }
         hull() {
-            translate([-len_y/2 + end_ch_y, open_d/2 - d, band_h - top_h])
+            translate([-len_y/2 + end_ch_y, inner_d0/2 - d, band_h - top_h])
             cube([len_y - 2*end_ch_y, d + attach_overlap, eps], center=false);
-            translate([-len_y/2 + end_ch_y, open_d/2 - eps, band_h - top_h - bot_h])
+            translate([-len_y/2 + end_ch_y, inner_d0/2 - eps, band_h - top_h - bot_h])
             cube([len_y - 2*end_ch_y, eps + attach_overlap, eps], center=false);
         }
-        // -Y face (attach at y = -open_d/2)
+        // -Y face (start at y = -inner_d0/2)
         hull() {
-            translate([-len_y/2 + end_ch_y, -open_d/2 - attach_overlap, band_h])
+            translate([-len_y/2 + end_ch_y, -inner_d0/2 - attach_overlap, band_h])
             cube([len_y - 2*end_ch_y, eps + attach_overlap, eps], center=false);
-            translate([-len_y/2 + end_ch_y, -open_d/2 - attach_overlap, band_h - top_h])
+            translate([-len_y/2 + end_ch_y, -inner_d0/2 - attach_overlap, band_h - top_h])
             cube([len_y - 2*end_ch_y, d + attach_overlap, eps], center=false);
         }
         hull() {
-            translate([-len_y/2 + end_ch_y, -open_d/2 - attach_overlap, band_h - top_h])
+            translate([-len_y/2 + end_ch_y, -inner_d0/2 - attach_overlap, band_h - top_h])
             cube([len_y - 2*end_ch_y, d + attach_overlap, eps], center=false);
-            translate([-len_y/2 + end_ch_y, -open_d/2 - attach_overlap, band_h - top_h - bot_h])
+            translate([-len_y/2 + end_ch_y, -inner_d0/2 - attach_overlap, band_h - top_h - bot_h])
             cube([len_y - 2*end_ch_y, eps + attach_overlap, eps], center=false);
         }
     }

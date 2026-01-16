@@ -395,6 +395,21 @@ module wall_ring_2d(outer_w, outer_d, wall_thickness, corner_r) {
     }
 }
 
+// 2D honeycomb pattern for lattice walls
+module honeycomb_2d(w, h, cell_size=10, wall_thick=1.2) {
+    cols = ceil(w / (cell_size * 1.5)) + 1;
+    rows = ceil(h / (cell_size * sqrt(3))) + 1;
+    
+    for (row = [0:rows])
+    for (col = [0:cols]) {
+        x_offset = col * cell_size * 1.5;
+        y_offset = row * cell_size * sqrt(3) + ((col % 2) * cell_size * sqrt(3) / 2);
+        
+        translate([x_offset - w/2, y_offset - h/2])
+        circle(d = cell_size, $fn = 6);
+    }
+}
+
 // Stackable receiver: carve a Gridfinity-style 2-chamfer pocket into the *inside top* of the wall.
 // This is built from the same dimensions as BASE_PROFILE (0.8 / 1.8 / 2.15 @ 45°).
 module stacking_receiver_cut(outer_w, outer_d, wall_thickness, corner_r, clearance_total=0.3) {
@@ -718,6 +733,22 @@ module build_tray_wall() {
             difference() {
                 linear_extrude(wall_total_height)
                 wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+
+                // Optional: honeycomb lattice pattern for walls (saves filament on large bins)
+                if (wall_pattern == "lattice" && wall_total_height > 10) {
+                    // Keep solid at top (for stacking/strength) and bottom (for base attachment)
+                    solid_top = enable_stacking ? 6 : 4;
+                    solid_bot = 3;
+                    lattice_h = wall_total_height - solid_top - solid_bot;
+                    if (lattice_h > 5) {
+                        translate([0, 0, solid_bot])
+                        linear_extrude(lattice_h)
+                        intersection() {
+                            wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+                            honeycomb_2d(total_width, total_depth, cell_size=12, wall_thick=1.2);
+                        }
+                    }
+                }
 
                 // Receiver pocket: cut down from the *top* of the wall. The cutter itself only
                 // extends down 5mm (BASEPLATE_LIP_HEIGHT), so it only affects the added stacking band.

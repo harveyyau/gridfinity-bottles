@@ -397,12 +397,12 @@ module wall_ring_2d(outer_w, outer_d, wall_thickness, corner_r) {
     }
 }
 
-// 2D honeycomb panel (solid rect with hex holes) — from reference library approach
+// 3D honeycomb hex holes positioned to cut through wall ring
 // Adapted from https://www.printables.com/model/575405-honeycomb-library-remix-for-openscad
-module honeycomb_panel_2d(panel_w, panel_h, cell_size=8) {
+module honeycomb_holes_3d(outer_w, outer_d, wall_thick, z_start, z_height, cell_size=8) {
     // cell_size is the hexagon diameter (point-to-point)
     // Wall rib thickness between cells
-    wall_rib = max(1.0, tray_wall_thickness * 0.6);
+    wall_rib = max(1.0, wall_thick * 0.6);
     
     smallDia = cell_size * cos(30);  // flat-to-flat
     projWall = wall_rib * cos(30);
@@ -410,21 +410,23 @@ module honeycomb_panel_2d(panel_w, panel_h, cell_size=8) {
     yStep = smallDia + wall_rib;
     xStep = cell_size * 3/2 + projWall * 2;
     
-    yStepsCount = ceil((panel_h/2) / yStep) + 1;
-    xStepsCount = ceil((panel_w/2) / xStep) + 1;
+    // Compute extents
+    w = outer_w;
+    h = outer_d;
+    yStepsCount = ceil((h/2) / yStep) + 1;
+    xStepsCount = ceil((w/2) / xStep) + 1;
     
-    // Generate honeycomb mesh: solid panel minus hex holes
-    difference() {
-        square([panel_w, panel_h], center=true);
+    // Generate hex cutout cylinders
+    translate([0, 0, z_start])
+    for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
+    for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
+        translate([xOffset, yOffset, 0])
+        linear_extrude(z_height + 0.1)
+        circle(d = cell_size, $fn = 6);
         
-        for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
-        for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
-            translate([xOffset, yOffset])
-            circle(d = cell_size, $fn = 6);
-            
-            translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2])
-            circle(d = cell_size, $fn = 6);
-        }
+        translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2, 0])
+        linear_extrude(z_height + 0.1)
+        circle(d = cell_size, $fn = 6);
     }
 }
 
@@ -753,40 +755,17 @@ module build_tray_wall() {
                 wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
 
                 // Optional: honeycomb lattice pattern for walls (saves filament on large bins)
-                // Apply honeycomb to each flat wall section separately (corners stay solid)
                 if (wall_pattern == "lattice" && wall_total_height > 10) {
-                    // Keep solid at top (for stacking/strength) and bottom (for base attachment)
+                    // Keep solid at top (for stacking/strength) and bottom (above floor)
                     solid_top = enable_stacking ? 6 : 4;
-                    solid_bot = 3;
-                    lattice_h = wall_total_height - solid_top - solid_bot;
+                    // Start lattice above raised floor if enabled, otherwise leave a small base margin
+                    floor_top_z = enable_raised_floor ? min(raised_floor_height, holder_rim_height) : 0;
+                    lattice_start = max(3, floor_top_z + 1);  // at least 3mm from wall base, or 1mm above floor
+                    lattice_end = wall_total_height - solid_top;
+                    lattice_h = lattice_end - lattice_start;
+                    
                     if (lattice_h > 5) {
-                        // Flat wall section dimensions (exclude rounded corners)
-                        flat_w = total_width - 2 * corner_radius;
-                        flat_d = total_depth - 2 * corner_radius;
-                        
-                        // +X face (right)
-                        translate([total_width/2 - tray_wall_thickness/2, 0, solid_bot + lattice_h/2])
-                        rotate([90, 0, 90])
-                        linear_extrude(tray_wall_thickness, center=true)
-                        honeycomb_panel_2d(flat_d, lattice_h, lattice_cell_size);
-                        
-                        // -X face (left)
-                        translate([-total_width/2 + tray_wall_thickness/2, 0, solid_bot + lattice_h/2])
-                        rotate([90, 0, 90])
-                        linear_extrude(tray_wall_thickness, center=true)
-                        honeycomb_panel_2d(flat_d, lattice_h, lattice_cell_size);
-                        
-                        // +Y face (back)
-                        translate([0, total_depth/2 - tray_wall_thickness/2, solid_bot + lattice_h/2])
-                        rotate([90, 0, 0])
-                        linear_extrude(tray_wall_thickness, center=true)
-                        honeycomb_panel_2d(flat_w, lattice_h, lattice_cell_size);
-                        
-                        // -Y face (front)
-                        translate([0, -total_depth/2 + tray_wall_thickness/2, solid_bot + lattice_h/2])
-                        rotate([90, 0, 0])
-                        linear_extrude(tray_wall_thickness, center=true)
-                        honeycomb_panel_2d(flat_w, lattice_h, lattice_cell_size);
+                        honeycomb_holes_3d(total_width, total_depth, tray_wall_thickness, lattice_start, lattice_h, lattice_cell_size);
                     }
                 }
 

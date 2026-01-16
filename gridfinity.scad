@@ -397,21 +397,29 @@ module wall_ring_2d(outer_w, outer_d, wall_thickness, corner_r) {
     }
 }
 
-// 2D honeycomb pattern for lattice walls (cuts hexagonal holes, leaving honeycomb ribs)
-module honeycomb_cutouts_2d(w, h, cell_size=8) {
-    // Honeycomb spacing
-    spacing_x = cell_size * 1.5;
-    spacing_y = cell_size * sqrt(3);
+// 2D honeycomb hex hole positions (to be subtracted from wall)
+// Adapted from https://www.printables.com/model/575405-honeycomb-library-remix-for-openscad
+module lattice_hex_holes_2d(w, h, cell_size=8) {
+    // cell_size is the hexagon diameter (point-to-point)
+    // Wall rib thickness between cells
+    wall_rib = max(1.0, tray_wall_thickness * 0.6);
     
-    cols = ceil(w / spacing_x) + 2;
-    rows = ceil(h / spacing_y) + 2;
+    smallDia = cell_size * cos(30);  // flat-to-flat
+    projWall = wall_rib * cos(30);
     
-    for (row = [0:rows])
-    for (col = [0:cols]) {
-        x_offset = col * spacing_x;
-        y_offset = row * spacing_y + ((col % 2) * spacing_y / 2);
+    yStep = smallDia + wall_rib;
+    xStep = cell_size * 3/2 + projWall * 2;
+    
+    yStepsCount = ceil((h/2) / yStep) + 1;
+    xStepsCount = ceil((w/2) / xStep) + 1;
+    
+    // Generate hex cutout positions
+    for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
+    for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
+        translate([xOffset, yOffset])
+        circle(d = cell_size, $fn = 6);
         
-        translate([x_offset - w/2 - spacing_x, y_offset - h/2 - spacing_y/2])
+        translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2])
         circle(d = cell_size, $fn = 6);
     }
 }
@@ -741,7 +749,7 @@ module build_tray_wall() {
                 wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
 
                 // Optional: honeycomb lattice pattern for walls (saves filament on large bins)
-                // Keep all structural edges solid: top rim, bottom rim, and corners
+                // Keep all structural edges solid: top rim, bottom rim
                 if (wall_pattern == "lattice" && wall_total_height > 10) {
                     // Keep solid at top (for stacking/strength) and bottom (for base attachment)
                     solid_top = enable_stacking ? 6 : 4;
@@ -750,19 +758,7 @@ module build_tray_wall() {
                     if (lattice_h > 5) {
                         translate([0, 0, solid_bot])
                         linear_extrude(lattice_h)
-                        intersection() {
-                            // Only cut honeycomb in the flat wall sections (not corners)
-                            difference() {
-                                wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
-                                // Protect corners by subtracting corner exclusion zones
-                                corner_protect = corner_radius + 2;
-                                for (sx = [-1, 1])
-                                for (sy = [-1, 1])
-                                    translate([sx * (total_width/2 - corner_protect), sy * (total_depth/2 - corner_protect)])
-                                    circle(r = corner_protect + 1);
-                            }
-                            honeycomb_cutouts_2d(total_width - corner_radius * 4, total_depth - corner_radius * 4, lattice_cell_size);
-                        }
+                        lattice_hex_holes_2d(total_width, total_depth, lattice_cell_size);
                     }
                 }
 

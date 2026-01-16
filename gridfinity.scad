@@ -34,6 +34,8 @@ enable_tray_wall = false;
 tray_wall_thickness = 2.0; // [1:0.5:4]
 // Use lattice/honeycomb walls instead of solid (saves filament on large bins)
 wall_pattern = "solid"; // [solid, lattice]
+// Honeycomb cell size for lattice walls (smaller = more cells, stronger but slower)
+lattice_cell_size = 8; // [4:1:15]
 // Height of your cylinders (wall will be this tall; stacking adds ~5mm automatically)
 object_height = 30; // [5:0.5:150]
 // Make tray stackable (adds receiver + ~5mm height)
@@ -395,17 +397,21 @@ module wall_ring_2d(outer_w, outer_d, wall_thickness, corner_r) {
     }
 }
 
-// 2D honeycomb pattern for lattice walls
-module honeycomb_2d(w, h, cell_size=10, wall_thick=1.2) {
-    cols = ceil(w / (cell_size * 1.5)) + 1;
-    rows = ceil(h / (cell_size * sqrt(3))) + 1;
+// 2D honeycomb pattern for lattice walls (cuts hexagonal holes, leaving honeycomb ribs)
+module honeycomb_cutouts_2d(w, h, cell_size=8) {
+    // Honeycomb spacing
+    spacing_x = cell_size * 1.5;
+    spacing_y = cell_size * sqrt(3);
+    
+    cols = ceil(w / spacing_x) + 2;
+    rows = ceil(h / spacing_y) + 2;
     
     for (row = [0:rows])
     for (col = [0:cols]) {
-        x_offset = col * cell_size * 1.5;
-        y_offset = row * cell_size * sqrt(3) + ((col % 2) * cell_size * sqrt(3) / 2);
+        x_offset = col * spacing_x;
+        y_offset = row * spacing_y + ((col % 2) * spacing_y / 2);
         
-        translate([x_offset - w/2, y_offset - h/2])
+        translate([x_offset - w/2 - spacing_x, y_offset - h/2 - spacing_y/2])
         circle(d = cell_size, $fn = 6);
     }
 }
@@ -735,6 +741,7 @@ module build_tray_wall() {
                 wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
 
                 // Optional: honeycomb lattice pattern for walls (saves filament on large bins)
+                // Keep all structural edges solid: top rim, bottom rim, and corners
                 if (wall_pattern == "lattice" && wall_total_height > 10) {
                     // Keep solid at top (for stacking/strength) and bottom (for base attachment)
                     solid_top = enable_stacking ? 6 : 4;
@@ -744,8 +751,17 @@ module build_tray_wall() {
                         translate([0, 0, solid_bot])
                         linear_extrude(lattice_h)
                         intersection() {
-                            wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
-                            honeycomb_2d(total_width, total_depth, cell_size=12, wall_thick=1.2);
+                            // Only cut honeycomb in the flat wall sections (not corners)
+                            difference() {
+                                wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+                                // Protect corners by subtracting corner exclusion zones
+                                corner_protect = corner_radius + 2;
+                                for (sx = [-1, 1])
+                                for (sy = [-1, 1])
+                                    translate([sx * (total_width/2 - corner_protect), sy * (total_depth/2 - corner_protect)])
+                                    circle(r = corner_protect + 1);
+                            }
+                            honeycomb_cutouts_2d(total_width - corner_radius * 4, total_depth - corner_radius * 4, lattice_cell_size);
                         }
                     }
                 }

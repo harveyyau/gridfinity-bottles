@@ -36,6 +36,8 @@ tray_wall_thickness = 2.0; // [1:0.5:4]
 wall_pattern = "solid"; // [solid, lattice]
 // Honeycomb cell size for lattice walls (smaller = more cells, stronger but slower)
 lattice_cell_size = 8; // [4:1:15]
+// Solid margin between honeycomb and corners (mm)
+lattice_corner_margin = 5; // [2:1:15]
 // Height of your cylinders (wall will be this tall; stacking adds ~5mm automatically)
 object_height = 30; // [5:0.5:150]
 // Make tray stackable (adds receiver + ~5mm height)
@@ -745,8 +747,9 @@ module build_tray_wall() {
                 lattice_h = lattice_end - lattice_start;
                 
                 if (lattice_h > 5) {
-                    flat_w = total_width - 2 * corner_radius;
-                    flat_d = total_depth - 2 * corner_radius;
+                    // Honeycomb panel dimensions: exclude corners AND add margin for clean transition
+                    flat_w = total_width - 2 * (corner_radius + lattice_corner_margin);
+                    flat_d = total_depth - 2 * (corner_radius + lattice_corner_margin);
                     wall_rib = max(1.0, tray_wall_thickness * 0.6);
                     
                     difference() {

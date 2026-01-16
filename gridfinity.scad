@@ -397,36 +397,29 @@ module wall_ring_2d(outer_w, outer_d, wall_thickness, corner_r) {
     }
 }
 
-// 3D honeycomb hex holes positioned to cut through wall ring
+// 2D honeycomb panel: rectangular mesh with hex holes (reference library approach)
 // Adapted from https://www.printables.com/model/575405-honeycomb-library-remix-for-openscad
-module honeycomb_holes_3d(outer_w, outer_d, wall_thick, z_start, z_height, cell_size=8) {
-    // cell_size is the hexagon diameter (point-to-point)
-    // Wall rib thickness between cells
-    wall_rib = max(1.0, wall_thick * 0.6);
-    
-    smallDia = cell_size * cos(30);  // flat-to-flat
+module honeycomb_panel_2d(panel_w, panel_h, cell_size=8, wall_rib=1.2) {
+    smallDia = cell_size * cos(30);
     projWall = wall_rib * cos(30);
     
     yStep = smallDia + wall_rib;
     xStep = cell_size * 3/2 + projWall * 2;
     
-    // Compute extents
-    w = outer_w;
-    h = outer_d;
-    yStepsCount = ceil((h/2) / yStep) + 1;
-    xStepsCount = ceil((w/2) / xStep) + 1;
+    yStepsCount = ceil((panel_h/2) / yStep) + 1;
+    xStepsCount = ceil((panel_w/2) / xStep) + 1;
     
-    // Generate hex cutout cylinders
-    translate([0, 0, z_start])
-    for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
-    for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
-        translate([xOffset, yOffset, 0])
-        linear_extrude(z_height + 0.1)
-        circle(d = cell_size, $fn = 6);
+    difference() {
+        square([panel_w, panel_h], center=true);
         
-        translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2, 0])
-        linear_extrude(z_height + 0.1)
-        circle(d = cell_size, $fn = 6);
+        for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
+        for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
+            translate([xOffset, yOffset])
+            circle(d = cell_size, $fn = 6);
+            
+            translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2])
+            circle(d = cell_size, $fn = 6);
+        }
     }
 }
 
@@ -734,46 +727,88 @@ module build_tray_wall() {
     if (enable_tray_wall) {
         // Wall starts at h_base (gridfinity top) to preserve base interface
         wall_start_z = h_base;
-        // Base wall height to reach object height from holder floor
-        // (holder_start_z is the top of the recess; holder floor is holder_start_z + holder_recess_depth)
         holder_floor_z_local = holder_start_z + holder_recess_depth;
         wall_base_height = (holder_floor_z_local - h_base) + object_height;
         corner_radius = BASE_OUTSIDE_RADIUS;
-        // Always raise the wall by the Gridfinity stack insertion depth so a stacked bin doesn't reduce usable height.
-        // (Even if walls are too thin for a full-depth receiver, extra height doesn't create shelves/overhangs.)
         stacking_band_h = (enable_stacking ? BASEPLATE_LIP_HEIGHT : 0);
-        
-        // Build as a *single* wall solid to avoid coplanar “touching faces” between wall + stacking band
-        // (those show up as non-manifold edges / slicer artifacts).
         wall_total_height = wall_base_height + stacking_band_h;
         eps = 0.03;
 
         translate([0, 0, wall_start_z])
         union() {
-            difference() {
-                linear_extrude(wall_total_height)
-                wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
-
-                // Optional: honeycomb lattice pattern for walls (saves filament on large bins)
-                if (wall_pattern == "lattice" && wall_total_height > 10) {
-                    // Keep solid at top (for stacking/strength) and bottom (above floor)
-                    solid_top = enable_stacking ? 6 : 4;
-                    // Start lattice above raised floor if enabled, otherwise leave a small base margin
-                    floor_top_z = enable_raised_floor ? min(raised_floor_height, holder_rim_height) : 0;
-                    lattice_start = max(3, floor_top_z + 1);  // at least 3mm from wall base, or 1mm above floor
-                    lattice_end = wall_total_height - solid_top;
-                    lattice_h = lattice_end - lattice_start;
+            if (wall_pattern == "lattice" && wall_total_height > 10) {
+                // Lattice mode: solid corners/rims + 4 honeycomb panels
+                solid_top = enable_stacking ? 6 : 4;
+                floor_top_z = enable_raised_floor ? min(raised_floor_height, holder_rim_height) : 0;
+                lattice_start = max(3, floor_top_z + 1);
+                lattice_end = wall_total_height - solid_top;
+                lattice_h = lattice_end - lattice_start;
+                
+                if (lattice_h > 5) {
+                    flat_w = total_width - 2 * corner_radius;
+                    flat_d = total_depth - 2 * corner_radius;
+                    wall_rib = max(1.0, tray_wall_thickness * 0.6);
                     
-                    if (lattice_h > 5) {
-                        honeycomb_holes_3d(total_width, total_depth, tray_wall_thickness, lattice_start, lattice_h, lattice_cell_size);
+                    difference() {
+                        // Start with full solid wall
+                        linear_extrude(wall_total_height)
+                        wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+                        
+                        // Cut 4 honeycomb sections from flat wall areas only
+                        // +X panel
+                        translate([total_width/2 - tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
+                        rotate([90, 0, 90])
+                        linear_extrude(tray_wall_thickness + 0.2, center=true)
+                        difference() {
+                            square([flat_d, lattice_h], center=true);
+                            honeycomb_panel_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
+                        }
+                        
+                        // -X panel
+                        translate([-total_width/2 + tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
+                        rotate([90, 0, 90])
+                        linear_extrude(tray_wall_thickness + 0.2, center=true)
+                        difference() {
+                            square([flat_d, lattice_h], center=true);
+                            honeycomb_panel_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
+                        }
+                        
+                        // +Y panel
+                        translate([0, total_depth/2 - tray_wall_thickness/2, lattice_start + lattice_h/2])
+                        rotate([90, 0, 0])
+                        linear_extrude(tray_wall_thickness + 0.2, center=true)
+                        difference() {
+                            square([flat_w, lattice_h], center=true);
+                            honeycomb_panel_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
+                        }
+                        
+                        // -Y panel
+                        translate([0, -total_depth/2 + tray_wall_thickness/2, lattice_start + lattice_h/2])
+                        rotate([90, 0, 0])
+                        linear_extrude(tray_wall_thickness + 0.2, center=true)
+                        difference() {
+                            square([flat_w, lattice_h], center=true);
+                            honeycomb_panel_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
+                        }
+                        
+                        // Receiver pocket
+                        if (enable_stacking && stacking_band_h > 0.01) {
+                            translate([0, 0, wall_total_height + eps])
+                            stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
+                        }
                     }
                 }
+            } else {
+                // Solid wall mode
+                difference() {
+                    linear_extrude(wall_total_height)
+                    wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
 
-                // Receiver pocket: cut down from the *top* of the wall. The cutter itself only
-                // extends down 5mm (BASEPLATE_LIP_HEIGHT), so it only affects the added stacking band.
-                if (enable_stacking && stacking_band_h > 0.01) {
-                    translate([0, 0, wall_total_height + eps])
-                    stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
+                    // Receiver pocket
+                    if (enable_stacking && stacking_band_h > 0.01) {
+                        translate([0, 0, wall_total_height + eps])
+                        stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
+                    }
                 }
             }
 

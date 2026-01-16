@@ -32,6 +32,8 @@ holder_rim_height = 15; // [5:0.1:50]
 enable_tray_wall = false;
 // Wall thickness
 tray_wall_thickness = 2.0; // [1:0.5:4]
+// Use lattice/honeycomb walls instead of solid (saves filament on large bins)
+wall_pattern = "solid"; // [solid, lattice]
 // Height of your cylinders (wall will be this tall; stacking adds ~5mm automatically)
 object_height = 30; // [5:0.5:150]
 // Make tray stackable (adds receiver + ~5mm height)
@@ -66,6 +68,10 @@ stacking_ramp_length_percent = 50; // [10:5:100]
 /* [Advanced: Rendering] */
 // Curve detail in mm (smaller = smoother, slower)
 curve_detail = 2; // [0.25:0.25:5]
+
+/* [Advanced: Base Style] */
+// Use lightweight base (hollow with corner ribs; saves filament on large bins)
+lightweight_base = false;
 
 /* [Advanced: Base Holes] */
 // Only add holes at corners (faster print)
@@ -631,8 +637,8 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
 
 module build_gridfinity_base() {
     // Gridfinity base - clipped to match wall footprint for fractional grids
-intersection() {
-        gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options);
+    intersection() {
+        gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options, 0, true, lightweight_base);
         // Clip to wall outer boundary
         translate([0, 0, -1])
         linear_extrude(h_base + 10)

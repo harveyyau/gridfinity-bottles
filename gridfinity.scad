@@ -754,40 +754,20 @@ module build_tray_wall() {
                         linear_extrude(wall_total_height)
                         wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
                         
-                        // Cut 4 honeycomb sections from flat wall areas only
-                        // +X panel
-                        translate([total_width/2 - tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
-                        rotate([90, 0, 90])
-                        linear_extrude(tray_wall_thickness + 0.2, center=true)
-                        difference() {
-                            square([flat_d, lattice_h], center=true);
+                        // Subtract honeycomb hex holes from flat wall sections
+                        // +X/-X panels (parallel to Y)
+                        for (sx = [-1, 1]) {
+                            translate([sx * (total_width/2 - tray_wall_thickness/2), 0, lattice_start + lattice_h/2])
+                            rotate([90, 0, 90])
+                            linear_extrude(tray_wall_thickness + 0.2, center=true)
                             honeycomb_hex_cutouts_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
                         }
                         
-                        // -X panel
-                        translate([-total_width/2 + tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
-                        rotate([90, 0, 90])
-                        linear_extrude(tray_wall_thickness + 0.2, center=true)
-                        difference() {
-                            square([flat_d, lattice_h], center=true);
-                            honeycomb_hex_cutouts_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
-                        }
-                        
-                        // +Y panel
-                        translate([0, total_depth/2 - tray_wall_thickness/2, lattice_start + lattice_h/2])
-                        rotate([90, 0, 0])
-                        linear_extrude(tray_wall_thickness + 0.2, center=true)
-                        difference() {
-                            square([flat_w, lattice_h], center=true);
-                            honeycomb_hex_cutouts_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
-                        }
-                        
-                        // -Y panel
-                        translate([0, -total_depth/2 + tray_wall_thickness/2, lattice_start + lattice_h/2])
-                        rotate([90, 0, 0])
-                        linear_extrude(tray_wall_thickness + 0.2, center=true)
-                        difference() {
-                            square([flat_w, lattice_h], center=true);
+                        // +Y/-Y panels (parallel to X)
+                        for (sy = [-1, 1]) {
+                            translate([0, sy * (total_depth/2 - tray_wall_thickness/2), lattice_start + lattice_h/2])
+                            rotate([90, 0, 0])
+                            linear_extrude(tray_wall_thickness + 0.2, center=true)
                             honeycomb_hex_cutouts_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
                         }
                         

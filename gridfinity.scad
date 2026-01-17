@@ -761,7 +761,7 @@ module build_tray_wall() {
                         linear_extrude(tray_wall_thickness + 0.2, center=true)
                         difference() {
                             square([flat_d, lattice_h], center=true);
-                            honeycomb_panel_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_hex_cutouts_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
                         }
                         
                         // -X panel
@@ -770,7 +770,7 @@ module build_tray_wall() {
                         linear_extrude(tray_wall_thickness + 0.2, center=true)
                         difference() {
                             square([flat_d, lattice_h], center=true);
-                            honeycomb_panel_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_hex_cutouts_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
                         }
                         
                         // +Y panel
@@ -779,7 +779,7 @@ module build_tray_wall() {
                         linear_extrude(tray_wall_thickness + 0.2, center=true)
                         difference() {
                             square([flat_w, lattice_h], center=true);
-                            honeycomb_panel_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_hex_cutouts_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
                         }
                         
                         // -Y panel
@@ -788,7 +788,7 @@ module build_tray_wall() {
                         linear_extrude(tray_wall_thickness + 0.2, center=true)
                         difference() {
                             square([flat_w, lattice_h], center=true);
-                            honeycomb_panel_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_hex_cutouts_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
                         }
                         
                         // Receiver pocket

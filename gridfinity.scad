@@ -744,31 +744,56 @@ module build_tray_wall() {
                 lattice_h = lattice_end - lattice_start;
                 
                 if (lattice_h > 5) {
-                    // Honeycomb panel dimensions: exclude corners AND add margin for clean transition
-                    flat_w = total_width - 2 * (corner_radius + lattice_corner_margin);
-                    flat_d = total_depth - 2 * (corner_radius + lattice_corner_margin);
-                    wall_rib = max(1.0, tray_wall_thickness * 0.6);
-                    
+                    // Build wall in lattice mode: solid structure with honeycomb cutouts in middle band only
                     difference() {
-                        // Start with full solid wall
+                        // Full solid wall
                         linear_extrude(wall_total_height)
                         wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
                         
-                        // Subtract honeycomb hex holes from flat wall sections
-                        // +X/-X panels (parallel to Y)
-                        for (sx = [-1, 1]) {
-                            translate([sx * (total_width/2 - tray_wall_thickness/2), 0, lattice_start + lattice_h/2])
-                            rotate([90, 0, 90])
-                            linear_extrude(tray_wall_thickness + 0.2, center=true)
-                            honeycomb_hex_cutouts_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
+                        // Honeycomb cutouts ONLY in the lattice band (not top/bottom/corners)
+                        // Constrain to flat wall sections with margin from corners
+                        wall_rib = max(1.0, tray_wall_thickness * 0.6);
+                        margin = corner_radius + lattice_corner_margin;
+                        
+                        // Create clipping box for each flat wall face
+                        // +X face
+                        intersection() {
+                            translate([total_width/2 - tray_wall_thickness - 0.1, -total_depth/2 + margin, lattice_start])
+                            cube([tray_wall_thickness + 1, total_depth - 2*margin, lattice_h]);
+                            
+                            translate([0, 0, lattice_start])
+                            linear_extrude(lattice_h)
+                            honeycomb_hex_cutouts_2d(total_width, total_depth, lattice_cell_size, wall_rib);
                         }
                         
-                        // +Y/-Y panels (parallel to X)
-                        for (sy = [-1, 1]) {
-                            translate([0, sy * (total_depth/2 - tray_wall_thickness/2), lattice_start + lattice_h/2])
-                            rotate([90, 0, 0])
-                            linear_extrude(tray_wall_thickness + 0.2, center=true)
-                            honeycomb_hex_cutouts_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
+                        // -X face
+                        intersection() {
+                            translate([-total_width/2 - 0.1, -total_depth/2 + margin, lattice_start])
+                            cube([tray_wall_thickness + 1, total_depth - 2*margin, lattice_h]);
+                            
+                            translate([0, 0, lattice_start])
+                            linear_extrude(lattice_h)
+                            honeycomb_hex_cutouts_2d(total_width, total_depth, lattice_cell_size, wall_rib);
+                        }
+                        
+                        // +Y face
+                        intersection() {
+                            translate([-total_width/2 + margin, total_depth/2 - tray_wall_thickness - 0.1, lattice_start])
+                            cube([total_width - 2*margin, tray_wall_thickness + 1, lattice_h]);
+                            
+                            translate([0, 0, lattice_start])
+                            linear_extrude(lattice_h)
+                            honeycomb_hex_cutouts_2d(total_width, total_depth, lattice_cell_size, wall_rib);
+                        }
+                        
+                        // -Y face
+                        intersection() {
+                            translate([-total_width/2 + margin, -total_depth/2 - 0.1, lattice_start])
+                            cube([total_width - 2*margin, tray_wall_thickness + 1, lattice_h]);
+                            
+                            translate([0, 0, lattice_start])
+                            linear_extrude(lattice_h)
+                            honeycomb_hex_cutouts_2d(total_width, total_depth, lattice_cell_size, wall_rib);
                         }
                         
                         // Receiver pocket

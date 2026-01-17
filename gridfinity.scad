@@ -399,9 +399,9 @@ module wall_ring_2d(outer_w, outer_d, wall_thickness, corner_r) {
     }
 }
 
-// 2D honeycomb panel: rectangular mesh with hex holes (reference library approach)
+// 2D honeycomb hex cutouts (just the holes, not the mesh)
 // Adapted from https://www.printables.com/model/575405-honeycomb-library-remix-for-openscad
-module honeycomb_panel_2d(panel_w, panel_h, cell_size=8, wall_rib=1.2) {
+module honeycomb_hex_cutouts_2d(panel_w, panel_h, cell_size=8, wall_rib=1.2) {
     smallDia = cell_size * cos(30);
     projWall = wall_rib * cos(30);
     
@@ -411,17 +411,14 @@ module honeycomb_panel_2d(panel_w, panel_h, cell_size=8, wall_rib=1.2) {
     yStepsCount = ceil((panel_h/2) / yStep) + 1;
     xStepsCount = ceil((panel_w/2) / xStep) + 1;
     
-    difference() {
-        square([panel_w, panel_h], center=true);
+    // Generate hex cutout positions
+    for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
+    for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
+        translate([xOffset, yOffset])
+        circle(d = cell_size, $fn = 6);
         
-        for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
-        for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
-            translate([xOffset, yOffset])
-            circle(d = cell_size, $fn = 6);
-            
-            translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2])
-            circle(d = cell_size, $fn = 6);
-        }
+        translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2])
+        circle(d = cell_size, $fn = 6);
     }
 }
 

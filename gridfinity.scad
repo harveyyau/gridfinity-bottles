@@ -781,12 +781,16 @@ module build_tray_wall() {
                             linear_extrude(tray_wall_thickness, center=true)
                             honeycomb_mesh_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
                             
-                            // Solid corners (full height)
-                            linear_extrude(wall_total_height)
-                            difference() {
-                                wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
-                                // Remove center (keep only corners)
-                                square([total_width - 2*margin, total_depth - 2*margin], center=true);
+                            // Solid corners (full height) - 4 corner pieces only
+                            for (sx = [-1, 1])
+                            for (sy = [-1, 1]) {
+                                translate([sx * (total_width/2 - margin/2), sy * (total_depth/2 - margin/2), 0])
+                                linear_extrude(wall_total_height)
+                                intersection() {
+                                    translate([-sx * (total_width/2 - margin/2), -sy * (total_depth/2 - margin/2)])
+                                    wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+                                    square([margin + corner_radius, margin + corner_radius], center=true);
+                                }
                             }
                             
                             // Solid bottom rim

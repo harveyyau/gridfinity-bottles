@@ -754,33 +754,35 @@ module build_tray_wall() {
                     margin = corner_radius + lattice_corner_margin;
                     flat_w = total_width - 2 * margin;
                     flat_d = total_depth - 2 * margin;
+                    // Add overlap so panels fuse with corners/rims (fixes manifold)
+                    overlap = 0.3;
                     
                     difference() {
                         union() {
-                            // 4 honeycomb mesh panels
+                            // 4 honeycomb mesh panels (extended for fusion)
                             // +X panel
                             translate([total_width/2 - tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
                             rotate([90, 0, 90])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d, lattice_h, lattice_cell_size, lattice_rib_thickness);
+                            honeycomb_mesh_2d(flat_d + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
                             // -X panel
                             translate([-total_width/2 + tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
                             rotate([90, 0, 90])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d, lattice_h, lattice_cell_size, lattice_rib_thickness);
+                            honeycomb_mesh_2d(flat_d + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
                             // +Y panel
                             translate([0, total_depth/2 - tray_wall_thickness/2, lattice_start + lattice_h/2])
                             rotate([90, 0, 0])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_mesh_2d(flat_w + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
                             // -Y panel
                             translate([0, -total_depth/2 + tray_wall_thickness/2, lattice_start + lattice_h/2])
                             rotate([90, 0, 0])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_w, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_mesh_2d(flat_w + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
                             // Solid corners (full height) - 4 corner pieces only
                             for (sx = [-1, 1])

@@ -751,40 +751,43 @@ module build_tray_wall() {
                 
                 if (lattice_h > 5) {
                     // Lattice mode: build with 4 honeycomb mesh panels + solid structure
+                    // Use generous overlaps at all junctions to ensure proper CSG fusion
                     margin = corner_radius + lattice_corner_margin;
                     flat_w = total_width - 2 * margin;
                     flat_d = total_depth - 2 * margin;
-                    // Add overlap so panels fuse with corners/rims (fixes manifold)
-                    overlap = 0.3;
+                    // Panel overlap: extend into corner/rim zones
+                    panel_overlap = 1.0;
+                    // Rim overlap: extend into lattice zone
+                    rim_overlap = 0.5;
                     
                     difference() {
-                        union() {
+                        render() union() {
                             // 4 honeycomb mesh panels (extended for fusion)
                             // +X panel
                             translate([total_width/2 - tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
                             rotate([90, 0, 90])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
+                            honeycomb_mesh_2d(flat_d + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
                             // -X panel
                             translate([-total_width/2 + tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
                             rotate([90, 0, 90])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
+                            honeycomb_mesh_2d(flat_d + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
                             // +Y panel
                             translate([0, total_depth/2 - tray_wall_thickness/2, lattice_start + lattice_h/2])
                             rotate([90, 0, 0])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_w + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
+                            honeycomb_mesh_2d(flat_w + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
                             // -Y panel
                             translate([0, -total_depth/2 + tray_wall_thickness/2, lattice_start + lattice_h/2])
                             rotate([90, 0, 0])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_w + overlap*2, lattice_h + overlap*2, lattice_cell_size, lattice_rib_thickness);
+                            honeycomb_mesh_2d(flat_w + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
                             
-                            // Solid corners (full height) - 4 corner pieces only
+                            // Solid corners (full height) - 4 corner pieces with panel overlap
                             for (sx = [-1, 1])
                             for (sy = [-1, 1]) {
                                 translate([sx * (total_width/2 - margin/2), sy * (total_depth/2 - margin/2), 0])
@@ -792,17 +795,18 @@ module build_tray_wall() {
                                 intersection() {
                                     translate([-sx * (total_width/2 - margin/2), -sy * (total_depth/2 - margin/2)])
                                     wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
-                                    square([margin + corner_radius, margin + corner_radius], center=true);
+                                    // Extend corner zone slightly to overlap with honeycomb panels
+                                    square([margin + corner_radius + panel_overlap, margin + corner_radius + panel_overlap], center=true);
                                 }
                             }
                             
-                            // Solid bottom rim (full perimeter)
-                            linear_extrude(lattice_start + 0.1)
+                            // Solid bottom rim (full perimeter, extend into lattice zone)
+                            linear_extrude(lattice_start + rim_overlap)
                             wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
                             
-                            // Solid top rim (full perimeter)
-                            translate([0, 0, lattice_end - 0.1])
-                            linear_extrude(wall_total_height - lattice_end + 0.1)
+                            // Solid top rim (full perimeter, extend into lattice zone)
+                            translate([0, 0, lattice_end - rim_overlap])
+                            linear_extrude(wall_total_height - lattice_end + rim_overlap)
                             wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
                         }
                         

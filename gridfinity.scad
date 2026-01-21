@@ -34,8 +34,10 @@ enable_tray_wall = false;
 tray_wall_thickness = 2.0; // [1:0.5:4]
 // Use lattice/honeycomb walls instead of solid (saves filament on large bins)
 wall_pattern = "solid"; // [solid, lattice]
-// Honeycomb cell size for lattice walls (smaller = more cells, stronger but slower)
+// Honeycomb cell size for lattice walls (hex diameter, smaller = more cells)
 lattice_cell_size = 8; // [4:1:15]
+// Honeycomb rib thickness (wall thickness between hex holes)
+lattice_rib_thickness = 1.2; // [0.6:0.2:3]
 // Solid margin between honeycomb and corners (mm)
 lattice_corner_margin = 5; // [2:1:15]
 // Height of your cylinders (wall will be this tall; stacking adds ~5mm automatically)
@@ -752,7 +754,6 @@ module build_tray_wall() {
                     margin = corner_radius + lattice_corner_margin;
                     flat_w = total_width - 2 * margin;
                     flat_d = total_depth - 2 * margin;
-                    wall_rib = max(1.0, tray_wall_thickness * 0.6);
                     
                     difference() {
                         union() {
@@ -761,13 +762,13 @@ module build_tray_wall() {
                             translate([total_width/2 - tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
                             rotate([90, 0, 90])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_mesh_2d(flat_d, lattice_h, lattice_cell_size, lattice_rib_thickness);
                             
                             // -X panel
                             translate([-total_width/2 + tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
                             rotate([90, 0, 90])
                             linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d, lattice_h, lattice_cell_size, wall_rib);
+                            honeycomb_mesh_2d(flat_d, lattice_h, lattice_cell_size, lattice_rib_thickness);
                             
                             // +Y panel
                             translate([0, total_depth/2 - tray_wall_thickness/2, lattice_start + lattice_h/2])

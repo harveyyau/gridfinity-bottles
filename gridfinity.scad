@@ -793,11 +793,11 @@ module build_tray_wall() {
                                 }
                             }
                             
-                            // Solid bottom rim
+                            // Solid bottom rim (full perimeter)
                             linear_extrude(lattice_start + 0.1)
                             wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
                             
-                            // Solid top rim
+                            // Solid top rim (full perimeter)
                             translate([0, 0, lattice_end - 0.1])
                             linear_extrude(wall_total_height - lattice_end + 0.1)
                             wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);

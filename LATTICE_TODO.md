@@ -1,23 +1,48 @@
-# Lattice Wall Pattern - Status
+# Lattice Wall Pattern - Next Session Plan
 
-## Goal
-Create honeycomb mesh walls (hexagonal ribs) to save filament on large bins while maintaining strength.
+## Current Status
+- Honeycomb pattern **works visually** on all 4 sides ✓
+- Cell size + rib thickness adjustable ✓
+- Corners and rims solid ✓
+- **Issue:** Non-manifold warning persists (10+ separate pieces being unioned)
 
-## Current Issue
-Honeycomb panels are being built correctly (`honeycomb_mesh_2d` generates proper hex mesh), but the union/positioning with solid corners/rims is causing panels to be hidden or creating wrong visual result.
+## Root Cause
+Building lattice as **10 separate pieces** (4 honeycomb panels + 4 corners + top rim + bottom rim). Even with overlaps and render(), CGAL can't perfectly fuse all the coplanar junctions.
 
-## Approaches Tried
-1. ❌ Subtract hex cylinders from full wall → creates "jail bars" (vertical strips)
-2. ❌ Build 4 panels then union with corners → panels get covered/hidden
-3. ✓ (briefly worked) Direct subtraction showed proper mesh, but had Volumes issues
+## Solution for Next Session: Single-Piece Lattice Zone
 
-## Next Steps
-1. Simplify: test with 1×1 grid, tall walls, no stacking/floor
-2. Debug panel positioning in isolation (render each panel alone)
-3. Ensure panels overlap/fuse with corner pieces (not just touch)
-4. OR: Accept "jail bars" look and tune spacing to make it acceptable
+**New architecture:**
+1. Build **ONE continuous lattice band** for the entire wall perimeter (not 4 separate panels)
+2. Approach: Start with full solid wall ring, subtract honeycomb hex pattern **globally** in the lattice Z-band, but **protect corners** with exclusion zones
+3. Add solid top/bottom rims as before (these are safe, full-perimeter extrusions)
 
-## Working Features
-- `lightweight_base` ✓
-- Parameter framework exists ✓
-- Honeycomb tiling math correct ✓
+**Implementation:**
+```
+difference() {
+    union() {
+        // Full wall ring
+        linear_extrude(wall_total_height) wall_ring_2d(...);
+    }
+    // Subtract honeycomb in lattice band ONLY, protecting corners
+    translate([0, 0, lattice_start])
+    linear_extrude(lattice_h)
+    intersection() {
+        // Only cut wall ring area
+        wall_ring_2d(...);
+        // Subtract corner protection zones
+        difference() {
+            square([large_enough], center=true);
+            for (corners) circle/square exclusions;
+        }
+        // Honeycomb hex pattern
+        honeycomb_hex_circles(...);
+    }
+}
+```
+
+**Test case:** 1×1 grid, tall walls, no stacking/floor (simplest)
+
+## Working Code Location
+- Last good commit: `f760d9a`
+- Honeycomb tiling math: `honeycomb_mesh_2d()` line ~404
+- Current lattice code: `build_tray_wall()` line ~731

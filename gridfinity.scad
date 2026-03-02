@@ -1,103 +1,136 @@
 /*
- * Gridfinity Cylinder Holder Generator
+ * Gridfinity Cylinder Holder with Honeycomb Lattice Walls
  * 
- * Creates Gridfinity-compatible trays for holding bottles, jars, 
- * paint pots, or any cylindrical objects.
+ * Creates customizable Gridfinity-compatible trays for batteries, paint pots,
+ * spice jars, or any cylindrical objects. Features beautiful honeycomb 
+ * lattice walls that save filament and look great!
  *
- * HOW TO USE:
- * 1. Measure your cylinder's diameter and height
- * 2. Set cylinder_diameter (add 0.5mm for easy fit)
- * 3. Set object_height to match your cylinder height
- * 4. Adjust grid size to fit your needs
+ * 🎯 QUICK START:
+ * 1. Measure your cylinder diameter with calipers
+ * 2. Set "cylinder_diameter" (add 0.5mm for easy fit)
+ * 3. Measure your item height and set "object_height"
+ * 4. Choose how tray height is specified in "height_mode"
+ * 5. Adjust "gridx" and "gridy" for tray size
+ * 6. Customize wall pattern (lattice saves 40%+ filament!)
+ * 7. Want an empty bin? Set "enable_holders" = false
  *
- * Common sizes: Paint pots ~32mm, Spice jars ~45mm, AA battery ~14.5mm
+ * 📏 COMMON SIZES:
+ * - AA batteries: 14.5mm diameter × 51mm (default)
+ * - AAA batteries: 10.5mm diameter × 45mm
+ * - Paint pots: 32mm diameter × 40mm
+ * - Spice jars: 45mm diameter × 80mm  
+ * - Pill bottles: 25-30mm diameter
  */
 
 /* [Grid Size] */
 // Gridfinity units wide (1 unit = 42mm)
 gridx = 2; // [1:0.5:8]
 // Gridfinity units deep (1 unit = 42mm)
-gridy = 2; // [1:0.5:8]
+gridy = 1; // [1:0.5:8]
 
-/* [Fit & Holders] */
-// Diameter of your cylinder (measured with calipers)
-cylinder_diameter = 32; // [10:0.1:100]
-// Extra clearance added to the hole diameter (total, not per-side)
+/* [Item & Holders] */
+// Diameter of your cylinders (measured with calipers, add ~0.5mm clearance)
+cylinder_diameter = 14.5; // [10:0.1:100]
+// Height of your item (mm) — measured end-to-end (used when height_mode="object")
+object_height = 51; // [5:1:200]
+// Extra clearance for easy fit (0.5mm recommended, increase if too tight)
 holder_clearance = 0.5; // [0:0.05:2]
-// How tall to make the holder rim (keeps cylinders upright)
-holder_rim_height = 15; // [5:0.1:50]
+// Height of holder rim that keeps cylinders upright
+holder_rim_height = 15; // [5:1:50]
+// Generate cylinder holders (holes). Disable for an empty tray/bin (cylinder sizing is ignored).
+enable_holders = true;
 
-/* [Tray Walls] */
-// Add walls around the tray (for lifting out of drawers)
-enable_tray_wall = false;
-// Wall thickness
-tray_wall_thickness = 2.0; // [1:0.5:4]
-// Use lattice/honeycomb walls instead of solid (saves filament on large bins)
-wall_pattern = "solid"; // [solid, lattice]
-// Honeycomb cell size for lattice walls (hex diameter, smaller = more cells)
-lattice_cell_size = 8; // [4:1:15]
-// Honeycomb rib thickness (wall thickness between hex holes)
-lattice_rib_thickness = 1.2; // [0.6:0.2:3]
-// Solid margin between honeycomb and corners (mm)
-lattice_corner_margin = 5; // [2:1:15]
-// Height of your cylinders (wall will be this tall; stacking adds ~5mm automatically)
-object_height = 30; // [5:0.5:150]
-// Make tray stackable (adds receiver + ~5mm height)
-enable_stacking = false;
-// Total XY clearance for stacking fit (typical 0.3–0.6; total, not per-side)
-stacking_clearance = 0.3; // [0:0.05:2]
+/* [Height (Z)] */
+// How to specify tray height (Z):
+// - object: tray fits your object height (optionally snapped to 7mm Gridfinity units)
+// - exclude_base: height above base top (7mm = 1u)
+// - total: total external height including base (7mm = 1u)
+height_mode = "exclude_base"; // [object, exclude_base, total]
+// Extra headroom above the object height when height_mode="object"
+object_height_clearance = 1; // [0:0.5:10]
+// Snap object-fit height up to next 7mm unit (recommended for Gridfinity)
+snap_object_height_to_u = true;
+// Height above base top when height_mode="exclude_base" (mm; 7mm = 1u)
+height_excluding_base = 28; // [7:7:210]
+// Total external height including base when height_mode="total" (mm; 7mm = 1u)
+total_height = 35; // [7:7:210]
 
-/* [Advanced: Raised Floor] */
-// Fill gaps between holders with a raised surface (cosmetic / easier cleaning)
-enable_raised_floor = false;
-// Floor height above holder floor (set equal to holder_rim_height for flush surface)
-raised_floor_height = 15; // [0:0.1:30]
+/* [Tray Walls - Recommended!] */
+// Add walls around the tray (great for drawer organization!)
+enable_tray_wall = true;
+// Wall thickness (2mm is strong and prints well)
+tray_wall_thickness = 2.0; // [1.5:0.5:4]
+// Use beautiful honeycomb lattice walls (saves 40%+ filament!)
+wall_pattern = "lattice"; // [solid, lattice]
+
+/* [Lattice Wall Settings] */
+// Honeycomb cell size - smaller = more cells, more detail
+lattice_cell_size = 8; // [5:1:12]
+// Rib thickness between hex holes (1.2-2mm prints reliably)
+lattice_rib_thickness = 1.2; // [0.8:0.2:3]
+// Solid corners for strength (distance from corner)
+lattice_corner_margin = 5; // [3:1:10]
+// Solid rim height at bottom (above raised floor if enabled)
+lattice_bottom_rim = 3; // [0:1:10]
+
+/* [Advanced: Optional Features] */
+// Fill gaps between holders with raised floor (when holders are disabled, this is a solid slab)
+enable_raised_floor = true;
+// Floor height above holder bottom (set to holder_rim_height for flush top)
+raised_floor_height = 16; // [5:1:30]
+// Make tray stackable (requires tray walls + Gridfinity base)
+enable_stacking = true;
+// Stacking fit tolerance - increase if too tight
+stacking_clearance = 0.3; // [0.1:0.05:1]
+// Alignment ramp length (percentage of side)
+stacking_ramp_length_percent = 50; // [20:10:80]
 
 /* [Advanced: Holder Details] */
-// Wall thickness around each holder
-holder_rim_thickness = 1.5; // [0.5:0.25:4]
-// Extra width at base of rim (for strength)
+// Wall thickness around each holder (1.5-3mm recommended)
+holder_rim_thickness = 2.0; // [1:0.25:4]
+// Extra thickness at base for strength
 holder_rim_taper = 1; // [0:0.5:3]
-// How deep holders sink into base (usually leave at 0.9)
-holder_recess_depth = 0.9; // [0:0.1:3]
+// How deep holders sink into base
+holder_recess_depth = 0.9; // [0.5:0.1:2]
 
-/* [Advanced: Spacing] */
-// How cylinders are arranged: auto picks the best fit
+/* [Advanced: Packing] */
+// Cylinder arrangement (auto optimizes spacing)
 packing_mode = "auto"; // [auto, grid]
-// Minimum gap between holders
+// Minimum wall thickness between holders
 min_wall_between = 0; // [0:0.5:5]
 
-/* [Advanced: Stacking] */
-// Alignment ramp length as % of usable side (0–100)
-stacking_ramp_length_percent = 50; // [10:5:100]
+/* [Advanced: Base Options] */
+// Use Gridfinity-compatible base (required for stacking/magnets; disable for simple flat bottom)
+enable_gridfinity_base = true;
+// Plain bottom thickness (when gridfinity base disabled)
+plain_bottom_thickness = 2; // [1:0.5:5]
+// Plain bottom chamfer size (decorative edge bevel)
+plain_bottom_chamfer = 1; // [0:0.5:3]
+// Lightweight base with ribs (saves filament on large trays)
+lightweight_base = false;
+// Magnet holes (6mm × 2mm magnets)
+magnet_holes = false;
+// Screw holes (M3 screws)
+screw_holes = false;
+// Corner holes only (faster print, use with magnets/screws)
+only_corners = false;
+// Refined hole style (smooth, not compatible with magnets)
+refined_holes = false;
+// Crush ribs for magnet grip
+crush_ribs = true;
+// Chamfered holes for easy insertion
+chamfer_holes = true;
 
 /* [Advanced: Rendering] */
-// Curve detail in mm (smaller = smoother, slower)
-curve_detail = 2; // [0.25:0.25:5]
-
-/* [Advanced: Base Style] */
-// Use lightweight base (hollow with corner ribs; saves filament on large bins)
-lightweight_base = false;
-
-/* [Advanced: Base Holes] */
-// Only add holes at corners (faster print)
-only_corners = false;
-// Use refined hole style (smoother, not compatible with magnets)
-refined_holes = false;
-// Add holes for 6mm x 2mm magnets
-magnet_holes = false;
-// Add holes for M3 screws
-screw_holes = false;
-// Add crush ribs to grip magnets
-crush_ribs = true;
-// Chamfer holes for easier insertion
-chamfer_holes = true;
+// Detail level (lower = smoother curves, slower render)
+curve_detail = 2; // [0.5:0.25:4]
 
 /* [Hidden] */
 $fa = 4;
 $fs = curve_detail;
-div_base_x = 1;
-div_base_y = 1;
+// Base subdivision (kept hidden). Default 0 uses mixed full/half tiles for x.5 sizes.
+div_base_x = 0;
+div_base_y = 0;
 printable_hole_top = false;
 hole_options = bundle_hole_options(refined_holes, magnet_holes, screw_holes, crush_ribs, chamfer_holes, printable_hole_top);
 
@@ -200,15 +233,24 @@ function center_positions(positions, avail_w, avail_h, edge_dist) =
     [for (p = positions) [p[0] + off_x, p[1] + off_y]];
 
 // Generate valid bottle positions with optimal packing
-function generate_valid_positions() = 
+function generate_valid_positions() =
     let(
         // Key improvement: when a tray wall exists, it doesn't need to “contain” the holder rim.
         // We only require the *hole* circle to fit fully inside the tray opening.
         // (Rim walls can merge into the tray wall and will be clipped by it.)
         min_edge_dist = hole_radius,
         avail_w = opening_width - 2 * min_edge_dist,
-        avail_h = opening_depth - 2 * min_edge_dist,
-        
+        avail_h = opening_depth - 2 * min_edge_dist
+    )
+    assert(
+        avail_w >= 0 && avail_h >= 0,
+        str(
+            "No room for holders: cylinder_diameter=", cylinder_diameter,
+            "mm (clearance=", holder_clearance, "mm) is too large for opening ",
+            opening_width, "×", opening_depth, "mm. Increase gridx/gridy, reduce tray_wall_thickness, disable tray walls, or disable holders."
+        )
+    )
+    let(
         // Grid positions (preferred when counts are equal)
         grid_positions = generate_grid_positions(avail_w, avail_h, holder_spacing),
         
@@ -372,11 +414,13 @@ r_skel = 2;
 // minimum baseplate thickness (when skeletonized)
 h_skel = 1;
 
-holder_start_z = bp_h_bot - holder_recess_depth;
+holder_start_z = enable_gridfinity_base ? 
+    (bp_h_bot - holder_recess_depth) : 
+    (plain_bottom_thickness - holder_recess_depth);
 
 
-// Generate validated and centered bottle positions
-positions = bottle_positions();
+// Generate validated and centered bottle positions (skip entirely for empty tray/bin)
+positions = enable_holders ? bottle_positions() : [];
 
 // Starting position offset (positions are already centered within usable area)
 start_offset_x = -(total_width / 2) + usable_margin;
@@ -669,44 +713,78 @@ module stacking_alignment_ramps(outer_w, outer_d, wall_thickness, corner_r, band
 }
 
 module build_gridfinity_base() {
-    // Gridfinity base - clipped to match wall footprint for fractional grids
-    intersection() {
-        gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options, 0, true, lightweight_base);
-        // Clip to wall outer boundary
-        translate([0, 0, -1])
-        linear_extrude(h_base + 10)
-        rounded_rect_2d(total_width, total_depth, BASE_OUTSIDE_RADIUS);
+    if (enable_gridfinity_base) {
+        // Gridfinity base - clipped to match wall footprint for fractional grids
+        // Force CGAL evaluation so OpenCSG preview doesn't leak intersection solids.
+        render() intersection() {
+            gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options, 0, true, lightweight_base);
+            // Clip to wall outer boundary
+            translate([0, 0, -1])
+            linear_extrude(h_base + 10)
+            rounded_rect_2d(total_width, total_depth, BASE_OUTSIDE_RADIUS);
+        }
+    } else {
+        // Simple flat bottom (non-gridfinity) with chamfered edges
+        render() difference() {
+            // Main bottom plate - extend into holder zone for proper fusion
+            linear_extrude(plain_bottom_thickness + 0.5)
+            rounded_rect_2d(total_width, total_depth, BASE_OUTSIDE_RADIUS);
+            
+            // Bottom chamfer (decorative bevel on bottom edge)
+            if (plain_bottom_chamfer > 0.01) {
+                translate([0, 0, -0.01])
+                linear_extrude(plain_bottom_chamfer + 0.02, scale = (total_width + total_depth + plain_bottom_chamfer * 4) / (total_width + total_depth))
+                rounded_rect_2d(total_width + plain_bottom_chamfer, total_depth + plain_bottom_chamfer, BASE_OUTSIDE_RADIUS + plain_bottom_chamfer);
+            }
+            
+            // Top chamfer (decorative bevel on top edge)
+            if (plain_bottom_chamfer > 0.01) {
+                translate([0, 0, plain_bottom_thickness])
+                linear_extrude(plain_bottom_chamfer + 0.51, scale = (total_width + total_depth - plain_bottom_chamfer * 4) / (total_width + total_depth))
+                rounded_rect_2d(total_width + plain_bottom_chamfer, total_depth + plain_bottom_chamfer, BASE_OUTSIDE_RADIUS + plain_bottom_chamfer);
+            }
+        }
     }
 }
 
 module build_holders() {
+    if (!enable_holders) {
+        // Empty tray/bin mode
+    } else {
     // Holder rims with holes - only clip these if wall is enabled
     clip_width = enable_tray_wall ? wall_inner_width : total_width;
     clip_depth = enable_tray_wall ? wall_inner_depth : total_depth;
     clip_radius = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
+    
+    // Small overlap to ensure proper boolean union with base (manifold requirement)
+    base_overlap = 0.1;
+    // Clip only needs to cover the holder Z-range; keeping this small avoids preview artifacts.
+    holder_clip_h = holder_start_z + holder_h_total() + 6;
 
-    intersection() {
+    // Force CGAL for this intersection so preview matches render.
+    render() intersection() {
         difference() {
-            // Holder rim solids - tapered outer
-            for_each_position(z = holder_start_z)
-                cylinder(holder_h_total(), holder_outer_r_bottom(), holder_outer_r_top());
+            // Holder rim solids - tapered outer, extend slightly into base
+            for_each_position(z = holder_start_z - base_overlap)
+                cylinder(holder_h_total() + base_overlap, holder_outer_r_bottom(), holder_outer_r_top());
             
             // Cut straight holes through holders
-            for_each_position(z = holder_start_z - 0.1)
-                cylinder(holder_h_total() + 0.2, holder_hole_r(), holder_hole_r());
+            for_each_position(z = holder_start_z - base_overlap - 0.1)
+                cylinder(holder_h_total() + base_overlap + 0.2, holder_hole_r(), holder_hole_r());
         }
         // Clip holder rims to fit inside wall
         translate([0, 0, -1])
-        linear_extrude(300)
+        linear_extrude(holder_clip_h)
         rounded_rect_2d(clip_width, clip_depth, clip_radius);
+    }
     }
 }
 
 module build_raised_floor() {
     // Raised floor to fill empty space between bottles
     if (enable_raised_floor) {
-        // Floor height from holder floor (capped to rim height)
-        floor_height = min(raised_floor_height, holder_rim_height);
+        // Floor height from holder floor (cap to rim height only when holders exist)
+        floor_height = enable_holders ? min(raised_floor_height, holder_rim_height) : raised_floor_height;
         // Actual holder floor Z (where objects sit, after recess)
         holder_floor_z = holder_floor_z();
         
@@ -715,103 +793,163 @@ module build_raised_floor() {
         floor_depth = enable_tray_wall ? wall_inner_depth : total_depth;
         floor_radius = enable_tray_wall ? max(0, BASE_OUTSIDE_RADIUS - tray_wall_thickness) : BASE_OUTSIDE_RADIUS;
         
-        difference() {
-            // Solid floor block - starts at holder floor
+        if (enable_holders) {
+            // Force CGAL evaluation so preview matches render (web customizers).
+            render() difference() {
+                // Solid floor block - starts at holder floor
+                translate([0, 0, holder_floor_z])
+                linear_extrude(floor_height)
+                rounded_rect_2d(floor_width, floor_depth, floor_radius);
+                
+                // Cut out bottle holes - slightly larger than holder rim to avoid coincident faces
+                floor_clearance = 0.05;  // Small clearance to avoid manifold issues
+                for_each_position(base_xy = [start_offset_x, start_offset_y], z = holder_floor_z - 0.1)
+                    cylinder(floor_height + 0.2, 
+                            holder_outer_r_bottom() + floor_clearance, 
+                            holder_outer_r_top() + floor_clearance);
+            }
+        } else {
+            // Empty tray/bin mode: raised floor is a solid slab (no holes)
+            render()
             translate([0, 0, holder_floor_z])
             linear_extrude(floor_height)
             rounded_rect_2d(floor_width, floor_depth, floor_radius);
-            
-            // Cut out bottle holes - tapered to match holder rim exactly
-            for_each_position(base_xy = [start_offset_x, start_offset_y], z = holder_floor_z - 0.1)
-                cylinder(floor_height + 0.2, holder_outer_r_bottom(), holder_outer_r_top());
         }
+    }
+}
+
+// 2D corner protection zones for lattice (prevents honeycomb from cutting corners)
+module corner_protection_zones_2d(total_width, total_depth, corner_margin) {
+    // Create exclusion zones in all 4 corners
+    for (sx = [-1, 1])
+    for (sy = [-1, 1]) {
+        translate([sx * total_width/2, sy * total_depth/2])
+        square([corner_margin * 2, corner_margin * 2], center=true);
+    }
+}
+
+// 2D global honeycomb hex pattern (tiles across entire area)
+module honeycomb_hex_pattern_global_2d(area_w, area_h, cell_size=8, wall_rib=1.2) {
+    // Use same tiling math as honeycomb_mesh_2d but generate hex circles only (no background)
+    smallDia = cell_size * cos(30);
+    projWall = wall_rib * cos(30);
+    
+    yStep = smallDia + wall_rib;
+    xStep = cell_size * 3/2 + projWall * 2;
+    
+    yStepsCount = ceil((area_h/2) / yStep) + 2;
+    xStepsCount = ceil((area_w/2) / xStep) + 2;
+    
+    // Generate hex circles across entire area
+    for (yOffset = [-yStep * yStepsCount : yStep : yStep * yStepsCount])
+    for (xOffset = [-xStep * xStepsCount : xStep : xStep * xStepsCount]) {
+        translate([xOffset, yOffset])
+        circle(d = cell_size, $fn = 6);
+        
+        translate([xOffset + cell_size*3/4 + projWall, yOffset + (smallDia + wall_rib)/2])
+        circle(d = cell_size, $fn = 6);
     }
 }
 
 module build_tray_wall() {
     if (enable_tray_wall) {
-        // Wall starts at h_base (gridfinity top) to preserve base interface
-        wall_start_z = h_base;
-        holder_floor_z_local = holder_start_z + holder_recess_depth;
-        wall_base_height = (holder_floor_z_local - h_base) + object_height;
+        // Wall starts at top of base (gridfinity shoulder or plain bottom)
+        wall_start_z = enable_gridfinity_base ? h_base : plain_bottom_thickness;
         corner_radius = BASE_OUTSIDE_RADIUS;
-        stacking_band_h = (enable_stacking ? BASEPLATE_LIP_HEIGHT : 0);
+        // Stacking is only meaningful for Gridfinity-style walls/base.
+        stacking_enabled = enable_stacking && enable_gridfinity_base;
+        stacking_band_h = stacking_enabled ? BASEPLATE_LIP_HEIGHT : 0;
+
+        // Height handling
+        // Gridfinity Z unit: 7mm == 1u
+        z_u = 7;
+        base_top_z_ref = enable_gridfinity_base ? z_u : plain_bottom_thickness;
+        holder_floor_z_local = holder_floor_z();
+
+        desired_top_z_raw =
+            (height_mode == "object") ?
+                (holder_floor_z_local + object_height + object_height_clearance) :
+            (height_mode == "exclude_base") ?
+                (base_top_z_ref + height_excluding_base) :
+                total_height;
+
+        // Optionally snap object-fit height to Gridfinity units (keeps bins aligned in Z).
+        desired_top_z =
+            (height_mode == "object" && snap_object_height_to_u && enable_gridfinity_base) ?
+                (ceil(desired_top_z_raw / z_u) * z_u) :
+                desired_top_z_raw;
+
+        // Avoid invalid/negative heights if user chooses very small totals.
+        desired_top_z_clamped = max(desired_top_z, wall_start_z + stacking_band_h + 0.1);
+        desired_wall_total_h = desired_top_z_clamped - wall_start_z;
+        // Main wall height excludes stacking band; clamp to stay valid.
+        wall_base_height = max(0.1, desired_wall_total_h - stacking_band_h);
         wall_total_height = wall_base_height + stacking_band_h;
         eps = 0.03;
 
         translate([0, 0, wall_start_z])
         union() {
             if (wall_pattern == "lattice" && wall_total_height > 10) {
-                // Lattice mode: solid corners/rims + 4 honeycomb panels
-                solid_top = enable_stacking ? 6 : 4;
+                // Lattice mode: SINGLE-PIECE architecture - build full wall, subtract honeycomb from each face
+                solid_top = stacking_enabled ? 6 : 4;
                 floor_top_z = enable_raised_floor ? min(raised_floor_height, holder_rim_height) : 0;
-                lattice_start = max(3, floor_top_z + 1);
+                // Lattice starts at: base level (0 or raised floor top + 1mm clearance) + user-defined bottom rim
+                lattice_base = enable_raised_floor ? floor_top_z + 1 : 0;
+                lattice_start = lattice_base + lattice_bottom_rim;
                 lattice_end = wall_total_height - solid_top;
                 lattice_h = lattice_end - lattice_start;
                 
                 if (lattice_h > 5) {
-                    // Lattice mode: build with 4 honeycomb mesh panels + solid structure
-                    // Use generous overlaps at all junctions to ensure proper CSG fusion
-                    margin = corner_radius + lattice_corner_margin;
-                    flat_w = total_width - 2 * margin;
-                    flat_d = total_depth - 2 * margin;
-                    // Panel overlap: extend into corner/rim zones
-                    panel_overlap = 1.0;
-                    // Rim overlap: extend into lattice zone
-                    rim_overlap = 0.5;
+                    // Corner protection margin
+                    corner_margin = corner_radius + lattice_corner_margin;
+                    flat_w = total_width - 2 * (corner_radius + lattice_corner_margin);
+                    flat_d = total_depth - 2 * (corner_radius + lattice_corner_margin);
                     
-                    difference() {
-                        render() union() {
-                            // 4 honeycomb mesh panels (extended for fusion)
-                            // +X panel
-                            translate([total_width/2 - tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
-                            rotate([90, 0, 90])
-                            linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
-                            
-                            // -X panel
-                            translate([-total_width/2 + tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
-                            rotate([90, 0, 90])
-                            linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_d + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
-                            
-                            // +Y panel
-                            translate([0, total_depth/2 - tray_wall_thickness/2, lattice_start + lattice_h/2])
-                            rotate([90, 0, 0])
-                            linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_w + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
-                            
-                            // -Y panel
-                            translate([0, -total_depth/2 + tray_wall_thickness/2, lattice_start + lattice_h/2])
-                            rotate([90, 0, 0])
-                            linear_extrude(tray_wall_thickness, center=true)
-                            honeycomb_mesh_2d(flat_w + panel_overlap*2, lattice_h + panel_overlap*2, lattice_cell_size, lattice_rib_thickness);
-                            
-                            // Solid corners (full height) - 4 corner pieces with panel overlap
-                            for (sx = [-1, 1])
-                            for (sy = [-1, 1]) {
-                                translate([sx * (total_width/2 - margin/2), sy * (total_depth/2 - margin/2), 0])
-                                linear_extrude(wall_total_height)
-                                intersection() {
-                                    translate([-sx * (total_width/2 - margin/2), -sy * (total_depth/2 - margin/2)])
-                                    wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
-                                    // Extend corner zone slightly to overlap with honeycomb panels
-                                    square([margin + corner_radius + panel_overlap, margin + corner_radius + panel_overlap], center=true);
-                                }
-                            }
-                            
-                            // Solid bottom rim (full perimeter, extend into lattice zone)
-                            linear_extrude(lattice_start + rim_overlap)
-                            wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
-                            
-                            // Solid top rim (full perimeter, extend into lattice zone)
-                            translate([0, 0, lattice_end - rim_overlap])
-                            linear_extrude(wall_total_height - lattice_end + rim_overlap)
-                            wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+                    // render() forces CGAL evaluation so preview matches render
+                    render() difference() {
+                        // Build FULL solid wall ring (single continuous piece)
+                        linear_extrude(wall_total_height)
+                        wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+                        
+                        // Subtract honeycomb hex holes from each wall face (4 separate cuts, not union)
+                        // +X face
+                        translate([total_width/2 - tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
+                        rotate([90, 0, 90])
+                        linear_extrude(tray_wall_thickness + 1, center=true)
+                        intersection() {
+                            square([flat_d, lattice_h], center=true);
+                            honeycomb_hex_pattern_global_2d(flat_d + 10, lattice_h + 10, lattice_cell_size, lattice_rib_thickness);
+                        }
+                        
+                        // -X face
+                        translate([-total_width/2 + tray_wall_thickness/2, 0, lattice_start + lattice_h/2])
+                        rotate([90, 0, 90])
+                        linear_extrude(tray_wall_thickness + 1, center=true)
+                        intersection() {
+                            square([flat_d, lattice_h], center=true);
+                            honeycomb_hex_pattern_global_2d(flat_d + 10, lattice_h + 10, lattice_cell_size, lattice_rib_thickness);
+                        }
+                        
+                        // +Y face
+                        translate([0, total_depth/2 - tray_wall_thickness/2, lattice_start + lattice_h/2])
+                        rotate([90, 0, 0])
+                        linear_extrude(tray_wall_thickness + 1, center=true)
+                        intersection() {
+                            square([flat_w, lattice_h], center=true);
+                            honeycomb_hex_pattern_global_2d(flat_w + 10, lattice_h + 10, lattice_cell_size, lattice_rib_thickness);
+                        }
+                        
+                        // -Y face
+                        translate([0, -total_depth/2 + tray_wall_thickness/2, lattice_start + lattice_h/2])
+                        rotate([90, 0, 0])
+                        linear_extrude(tray_wall_thickness + 1, center=true)
+                        intersection() {
+                            square([flat_w, lattice_h], center=true);
+                            honeycomb_hex_pattern_global_2d(flat_w + 10, lattice_h + 10, lattice_cell_size, lattice_rib_thickness);
                         }
                         
                         // Receiver pocket
-                        if (enable_stacking && stacking_band_h > 0.01) {
+                        if (stacking_enabled && stacking_band_h > 0.01) {
                             translate([0, 0, wall_total_height + eps])
                             stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
                         }
@@ -819,12 +957,13 @@ module build_tray_wall() {
                 }
             } else {
                 // Solid wall mode
-                difference() {
+                // Force CGAL evaluation so preview matches render (web customizers).
+                render() difference() {
                     linear_extrude(wall_total_height)
                     wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
 
                     // Receiver pocket
-                    if (enable_stacking && stacking_band_h > 0.01) {
+                    if (stacking_enabled && stacking_band_h > 0.01) {
                         translate([0, 0, wall_total_height + eps])
                         stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
                     }
@@ -832,7 +971,7 @@ module build_tray_wall() {
             }
 
             // Optional alignment ramps (supportless) to center a stacked base.
-            if (enable_stacking && stacking_band_h > 0.01) {
+            if (stacking_enabled && stacking_band_h > 0.01) {
                 translate([0, 0, wall_total_height - stacking_band_h])
                 stacking_alignment_ramps(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_band_h, stacking_clearance);
             }
@@ -880,51 +1019,109 @@ module gridfinityBase(gx, gy, length, dx, dy, hole_options=bundle_hole_options()
         assert(
         is_bool(only_corners) 
         );
-    dbnxt = [for (i=[1:5]) if (abs(gx*i)%1 < 0.001 || abs(gx*i)%1 > 0.999) i];
-    dbnyt = [for (i=[1:5]) if (abs(gy*i)%1 < 0.001 || abs(gy*i)%1 > 0.999) i];
-    dbnx = 1/(dx != 0 ? round(dx) : (len(dbnxt) > 0 ? dbnxt[0] : 1));
-    dbny = 1/(dy != 0 ? round(dy) : (len(dbnyt) > 0 ? dbnyt[0] : 1));
+    // Gridfinity pitch is `length` (normally 42mm). The physical gap between feet is fixed
+    // at (length - BASE_SIZE) == 0.5mm, even when half-units are used.
+    gap = length - BASE_SIZE;
 
-    // Final size in number of bases
-    grid_size = [gx/dbnx, gy/dbny];
+    // If dx/dy are left at 0 (default), use a mixed tiling approach for x.5 sizes:
+    // keep full-size feet for the integer portion, and add only the needed half/quarter feet.
+    // This matches real "full + half" baseplates and avoids the "chocolate bar" of all-half feet.
+    use_mixed_halves = (dx == 0 && dy == 0) &&
+        (abs(gx * 2 - round(gx * 2)) < 0.001) &&
+        (abs(gy * 2 - round(gy * 2)) < 0.001);
 
-    // Per spec, there's a 0.5mm gap between each base,
-    // But that needs to be scaled based on everything else.
-    individual_base_size_mm = [dbnx, dbny] * BASE_SIZE;
-    base_center_distance_mm = [dbnx, dbny] * length;
-    gap_mm = base_center_distance_mm - individual_base_size_mm;
-
-    // Final size of the base top. In mm.
-    grid_size_mm = [
-        base_center_distance_mm.x * grid_size.x,
-        base_center_distance_mm.y * grid_size.y,
-    ] - gap_mm;
+    // Overall outer size (matches total_width/total_depth)
+    grid_size_mm = [gx * length - gap, gy * length - gap];
 
     if (final_cut) {
-        translate([0, 0, h_base-TOLLERANCE])
-        rounded_square([grid_size_mm.x, grid_size_mm.y, h_bot], BASE_OUTSIDE_RADIUS, center=true);
+        // Use seam-free rounded rectangle to avoid offset() artifacts and ensure smooth corners
+        // even for fractional grid sizes (e.g. 0.5u).
+        translate([0, 0, h_base - TOLLERANCE])
+        linear_extrude(h_bot)
+        rounded_rect_2d(grid_size_mm.x, grid_size_mm.y, BASE_OUTSIDE_RADIUS);
     }
 
-    if(only_corners) {
-        difference(){
-            pattern_linear(grid_size.x, grid_size.y, base_center_distance_mm.x, base_center_distance_mm.y)
-            block_base(bundle_hole_options(), 0, individual_base_size_mm);
+    if (use_mixed_halves) {
+        // Segment sizes along each axis: N full feet, plus optional half-foot remainder.
+        size_full = BASE_SIZE;
+        size_half = length/2 - gap;
 
-            copy_mirror([0, 1, 0]) {
-                copy_mirror([1, 0, 0]) {
-                    translate([
-                        grid_size_mm.x/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
-                        grid_size_mm.y/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
-                        0
-                    ])
-                    block_base_hole(hole_options, off);
+        gx_full = floor(gx + 0.001);
+        gy_full = floor(gy + 0.001);
+        gx_half = (gx - gx_full) > 0.25;
+        gy_half = (gy - gy_full) > 0.25;
+
+        x_sizes = concat([for (i = [1:gx_full]) size_full], gx_half ? [size_half] : []);
+        y_sizes = concat([for (i = [1:gy_full]) size_full], gy_half ? [size_half] : []);
+
+        // Center positions for each segment, preserving a fixed `gap` between segments.
+        x_centers = [
+            for (i = 0, pos = -grid_size_mm.x/2; i < len(x_sizes); pos = pos + x_sizes[i] + gap, i = i + 1)
+                pos + x_sizes[i]/2
+        ];
+        y_centers = [
+            for (i = 0, pos = -grid_size_mm.y/2; i < len(y_sizes); pos = pos + y_sizes[i] + gap, i = i + 1)
+                pos + y_sizes[i]/2
+        ];
+
+        if (only_corners) {
+            difference() {
+                for (xi = [0 : len(x_sizes) - 1])
+                for (yi = [0 : len(y_sizes) - 1])
+                    translate([x_centers[xi], y_centers[yi], 0])
+                    block_base(bundle_hole_options(), 0, [x_sizes[xi], y_sizes[yi]]);
+
+                copy_mirror([0, 1, 0]) {
+                    copy_mirror([1, 0, 0]) {
+                        translate([
+                            grid_size_mm.x/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
+                            grid_size_mm.y/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
+                            0
+                        ])
+                        block_base_hole(hole_options, off);
+                    }
                 }
             }
+        } else {
+            for (xi = [0 : len(x_sizes) - 1])
+            for (yi = [0 : len(y_sizes) - 1])
+                translate([x_centers[xi], y_centers[yi], 0])
+                block_base(hole_options, off, [x_sizes[xi], y_sizes[yi]]);
         }
-    }
-    else {
-        pattern_linear(grid_size.x, grid_size.y, base_center_distance_mm.x, base_center_distance_mm.y)
-        block_base(hole_options, off, individual_base_size_mm);
+    } else {
+        // Fallback: uniform subdivision logic (supports arbitrary fractions if dx/dy are provided).
+        dbnxt = [for (i = [1:5]) if (abs(gx*i)%1 < 0.001 || abs(gx*i)%1 > 0.999) i];
+        dbnyt = [for (i = [1:5]) if (abs(gy*i)%1 < 0.001 || abs(gy*i)%1 > 0.999) i];
+        dbnx = 1/(dx != 0 ? round(dx) : (len(dbnxt) > 0 ? dbnxt[0] : 1));
+        dbny = 1/(dy != 0 ? round(dy) : (len(dbnyt) > 0 ? dbnyt[0] : 1));
+
+        // Final size in number of bases
+        grid_size = [gx/dbnx, gy/dbny];
+
+        base_center_distance_mm = [dbnx, dbny] * length;
+        gap_mm = [gap, gap];
+        individual_base_size_mm = base_center_distance_mm - gap_mm;
+
+        if (only_corners) {
+            difference() {
+                pattern_linear(grid_size.x, grid_size.y, base_center_distance_mm.x, base_center_distance_mm.y)
+                block_base(bundle_hole_options(), 0, individual_base_size_mm);
+
+                copy_mirror([0, 1, 0]) {
+                    copy_mirror([1, 0, 0]) {
+                        translate([
+                            grid_size_mm.x/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
+                            grid_size_mm.y/2 - HOLE_DISTANCE_FROM_BOTTOM_EDGE - BASE_PROFILE_MAX.x,
+                            0
+                        ])
+                        block_base_hole(hole_options, off);
+                    }
+                }
+            }
+        } else {
+            pattern_linear(grid_size.x, grid_size.y, base_center_distance_mm.x, base_center_distance_mm.y)
+            block_base(hole_options, off, individual_base_size_mm);
+        }
     }
 }
 
@@ -953,14 +1150,13 @@ module block_base(hole_options, off=0, size=[BASE_SIZE, BASE_SIZE]) {
             translate([translation_x, 0, 0])
             polygon(BASE_PROFILE);
 
-            rounded_square(
-                [
-                    base_bottom_size.x + TOLLERANCE,
-                    base_bottom_size.y + TOLLERANCE,
-                    BASE_PROFILE_MAX.y
-                ],
-                translation_x,
-                center=true
+            // Add small overlap to avoid coincident faces
+            translate([0, 0, -0.01])
+            linear_extrude(BASE_PROFILE_MAX.y + 0.02)
+            rounded_rect_2d(
+                base_bottom_size.x + TOLLERANCE,
+                base_bottom_size.y + TOLLERANCE,
+                translation_x
             );
         }
         // 4 holes

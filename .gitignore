@@ -1,0 +1,11 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+# Generated exports / artifacts
+stl_exports/
+stls/
+*.stl
+*.3mf
+*.png
+

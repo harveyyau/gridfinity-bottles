@@ -1,0 +1,162 @@
+# Gridfinity Cylinder Holder with Honeycomb Lattice Walls
+
+**Customizable Gridfinity-compatible organizers for bottles, jars, paint pots, and any cylindrical objects!**
+
+## ✨ Features
+
+- 🏗️ **Gridfinity Compatible** - Works with standard gridfinity baseplates (or use flat bottom!)
+- 🐝 **Beautiful Honeycomb Lattice Walls** - Save 40%+ filament while maintaining strength
+- 📏 **Fully Customizable** - Adjust every dimension to fit your needs
+- 🎨 **Multiple Patterns** - Choose solid walls or elegant lattice design
+- 📦 **Stackable Option** - Build vertical storage towers
+- 🔧 **Smart Packing** - Auto-arranges cylinders for optimal fit
+- ⚡ **Plain Bottom Option** - Disable gridfinity base for simple standalone organizer
+
+## 🎯 Quick Start
+
+### For AA Batteries (Default):
+1. Measure your item diameter with calipers
+2. Set `cylinder_diameter` (add ~0.5mm for easy fit)
+3. Measure your item height and set `object_height`
+4. Choose `height_mode` (object / exclude base / total height)
+5. Adjust `gridx` and `gridy` for tray size
+6. Optional: enable `enable_raised_floor` and/or `enable_stacking`
+
+## 🧩 MakerWorld Customizer (Parametric Model Maker)
+
+- Upload `gridfinity-cylinder-holder.scad` to your MakerWorld model page to enable the **Customize** button.
+- MakerWorld runs an OpenSCAD-compatible engine (based on the official 2021 release), so keep scripts conservative and test tricky changes.
+
+### Common Presets (Built-in):
+- **AA Batteries (2x1) - Lattice, Stackable**
+- **AA Batteries (2x1) - Fits Object Height**
+- **AA Batteries (2x1) - Flat Bottom**
+- **Empty Tray/Bin (2x1) - No Holders**
+- **Paint Pots (2x2) - Lattice**
+- **Spice Jars (3x3) - Solid Walls**
+
+## 🐝 Why Lattice Walls?
+
+Lattice walls offer several advantages:
+- **Save Filament**: 40-50% less material than solid walls
+- **Faster Prints**: Less material = faster completion
+- **Better Looking**: Gorgeous honeycomb pattern
+- **Still Strong**: Maintains excellent structural integrity
+- **Ventilation**: Great for items that need airflow
+
+## 📐 Key Parameters
+
+### Essential Settings:
+- **cylinder_diameter**: Diameter of your items (use calipers!)
+- **object_height**: Height of your item (measured end-to-end)
+- **height_mode**: How tray Z height is specified (object / exclude base / total)
+- **gridx / gridy**: Tray size in gridfinity units (1 unit = 42mm)
+- **enable_tray_wall**: Add walls around the tray (recommended!)
+- **wall_pattern**: Choose `lattice` or `solid`
+- **enable_holders**: Generate cylinder holders (disable for an empty tray/bin)
+
+### Height modes (Z):
+- **object**: Tray height is derived from `object_height` (+ `object_height_clearance`), optionally snapped to 7mm (1u)
+- **exclude_base**: Set `height_excluding_base` (mm; 7mm = 1u) — height above the base top
+- **total**: Set `total_height` (mm; 7mm = 1u) — total external height including base
+
+### Base Options:
+- **enable_gridfinity_base**: Use gridfinity base (true) or simple flat bottom (false)
+  - Gridfinity: Compatible with baseplate ecosystem, magnets/screws
+  - Flat bottom: Simpler, faster to print, standalone use
+- **plain_bottom_thickness**: Thickness of flat bottom (1-5mm, default 2mm)
+- **plain_bottom_chamfer**: Edge bevel for polished look (0-3mm, default 1mm)
+
+### Lattice Wall Tuning:
+- **lattice_cell_size**: 5-12mm (smaller = more detail)
+- **lattice_rib_thickness**: 1.2-2mm (thicker = stronger)
+- **lattice_corner_margin**: 3-10mm (solid corners for strength)
+- **lattice_bottom_rim**: 0-10mm (solid base height)
+
+### Optional Features:
+- **enable_raised_floor**: Fill gaps between holders
+- **enable_stacking**: Make trays stackable
+- **holder_clearance**: Adjust fit (0.5mm default)
+
+## 🖨️ Printing Recommendations
+
+### Settings:
+- **Layer Height**: 0.2mm (0.15mm for finer detail)
+- **Infill**: 15-20% (lattice walls are already hollow)
+- **Walls**: 3-4 perimeters
+- **Top/Bottom Layers**: 4-5 layers
+- **Supports**: None needed!
+
+### Tips:
+- Lattice walls print beautifully without supports
+- For large trays, consider disabling the Gridfinity base (flat bottom) if you don't need baseplate compatibility
+- Print with brim if you have adhesion issues
+- PETG or PLA work great - PETG for durability
+
+## 📏 Sizing Guide
+
+### Common Container Sizes:
+- **Acrylic Paint Pots**: 28-35mm diameter
+- **Citadel/Games Workshop Paint**: 26mm diameter
+- **Spice Jars**: 40-50mm diameter
+- **Pill Bottles**: 25-30mm diameter
+- **AA Batteries**: 14.5mm diameter
+- **AAA Batteries**: 10.5mm diameter
+- **Marker Pens**: 12-15mm diameter
+
+### Grid Size Reference:
+- **1×1 = 42mm**: 1-2 small containers
+- **2×2 = 84mm**: 4-6 medium containers
+- **3×3 = 126mm**: 9-12 containers
+- **Larger**: Scale up as needed!
+
+Supports **half units** (`gridx`/`gridy` in 0.5 steps) for half-grid baseplates.
+
+## 🔧 Advanced Features
+
+- **Plain Bottom Mode**: Disable gridfinity base for simple flat-bottom organizer
+- **Magnet Holes**: Add 6×2mm magnet holes for baseplate attachment (gridfinity mode)
+- **Screw Holes**: M3 screw mounting option (gridfinity mode)
+- **Corner Holes Only**: Faster printing when you only need magnets/screws in the corners
+- **Packing Modes**: Auto or grid arrangement
+- **Custom Holder Details**: Adjust rim thickness, taper, and recess depth
+
+## 🎨 Design Notes
+
+This design uses a **single-piece wall architecture** for the lattice pattern, ensuring:
+- Clean manifold geometry
+- Excellent print quality
+- No layering artifacts
+- Strong, reliable prints
+
+The honeycomb pattern is created by subtracting hex holes from each wall face individually, with protected corner zones for structural integrity.
+
+## 📝 Version History
+
+### v2.0 - Lattice Walls Update
+- Complete rewrite of lattice wall system
+- Single-piece architecture for manifold geometry
+- Adjustable bottom rim parameter
+- Improved parameter organization
+- Better default presets
+
+### v1.0 - Initial Release
+- Basic gridfinity cylinder holder
+- Solid walls
+- Customizable dimensions
+
+## 🤝 Credits
+
+Based on the excellent Gridfinity system by Zack Freedman.
+Honeycomb pattern inspired by various parametric honeycomb libraries.
+
+## 📄 License
+
+This design is released under Creative Commons Attribution 4.0 International (CC BY 4.0).
+You are free to use, modify, and distribute this design, even commercially, with attribution.
+
+## 💬 Support
+
+If you have questions or suggestions, feel free to leave a comment or remix!
+
+**Happy Printing! 🎉**

@@ -1,0 +1,79 @@
+{
+    "fileFormatVersion": "1",
+    "parameterSets": {
+        "AA Batteries (2x1) - Lattice, Stackable (Default)": {
+            "gridx": "2",
+            "gridy": "1",
+            "enable_holders": "true",
+            "cylinder_diameter": "14.5",
+            "object_height": "51",
+            "height_mode": "exclude_base",
+            "height_excluding_base": "28",
+            "enable_tray_wall": "true",
+            "wall_pattern": "lattice",
+            "enable_gridfinity_base": "true",
+            "enable_raised_floor": "true",
+            "raised_floor_height": "16",
+            "enable_stacking": "true"
+        },
+        "AA Batteries (2x1) - Fits Object Height": {
+            "gridx": "2",
+            "gridy": "1",
+            "enable_holders": "true",
+            "cylinder_diameter": "14.5",
+            "object_height": "51",
+            "height_mode": "object",
+            "object_height_clearance": "1",
+            "snap_object_height_to_u": "true",
+            "enable_tray_wall": "true",
+            "wall_pattern": "lattice",
+            "enable_gridfinity_base": "true"
+        },
+        "AA Batteries (2x1) - Flat Bottom": {
+            "gridx": "2",
+            "gridy": "1",
+            "enable_holders": "true",
+            "cylinder_diameter": "14.5",
+            "height_mode": "exclude_base",
+            "height_excluding_base": "28",
+            "enable_tray_wall": "true",
+            "wall_pattern": "lattice",
+            "enable_gridfinity_base": "false",
+            "plain_bottom_thickness": "2",
+            "plain_bottom_chamfer": "1"
+        },
+        "Empty Tray/Bin (2x1) - No Holders": {
+            "gridx": "2",
+            "gridy": "1",
+            "enable_holders": "false",
+            "height_mode": "exclude_base",
+            "height_excluding_base": "28",
+            "enable_tray_wall": "true",
+            "wall_pattern": "solid",
+            "enable_gridfinity_base": "true",
+            "enable_raised_floor": "false",
+            "enable_stacking": "true"
+        },
+        "Paint Pots (2x2) - Lattice": {
+            "gridx": "2",
+            "gridy": "2",
+            "enable_holders": "true",
+            "cylinder_diameter": "32",
+            "enable_tray_wall": "true",
+            "wall_pattern": "lattice",
+            "enable_raised_floor": "false",
+            "enable_stacking": "false"
+        },
+        "Spice Jars (3x3) - Solid Walls": {
+            "gridx": "3",
+            "gridy": "3",
+            "enable_holders": "true",
+            "cylinder_diameter": "45",
+            "enable_tray_wall": "true",
+            "wall_pattern": "solid",
+            "enable_raised_floor": "true",
+            "raised_floor_height": "15",
+            "enable_stacking": "false"
+        }
+    }
+}

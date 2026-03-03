@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Batch STL generator for gridfinity.scad
+Batch STL generator for gridfinity-cylinder-holder.scad
 Generates multiple preset configurations for testing/distribution
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-# OpenSCAD binary path (adjust if needed)
-OPENSCAD = "/opt/homebrew/Caskroom/openscad/2021.01/OpenSCAD-2021.01.app/Contents/MacOS/OpenSCAD"
-SCAD_FILE = "gridfinity.scad"
+# OpenSCAD binary (override with env var OPENSCAD_BIN)
+OPENSCAD = os.environ.get("OPENSCAD_BIN", "openscad")
+SCAD_FILE = "gridfinity-cylinder-holder.scad"
 OUTPUT_DIR = Path("stl_exports")
 
 # Define your presets here

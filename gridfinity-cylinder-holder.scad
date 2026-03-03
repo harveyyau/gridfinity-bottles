@@ -24,9 +24,9 @@
 
 /* [Grid Size] */
 // Gridfinity units wide (1 unit = 42mm)
-gridx = 2; // [1:0.5:8]
+gridx = 2; // [0.5:0.5:8]
 // Gridfinity units deep (1 unit = 42mm)
-gridy = 1; // [1:0.5:8]
+gridy = 1; // [0.5:0.5:8]
 
 /* [Item & Holders] */
 // Diameter of your cylinders (measured with calipers, add ~0.5mm clearance)
@@ -45,7 +45,7 @@ enable_holders = true;
 // - object: tray fits your object height (optionally snapped to 7mm Gridfinity units)
 // - exclude_base: height above base top (7mm = 1u)
 // - total: total external height including base (7mm = 1u)
-height_mode = "exclude_base"; // [object, exclude_base, total]
+height_mode = "exclude_base"; // [object:Fit item height, exclude_base:Height above base, total:Total external height]
 // Extra headroom above the object height when height_mode="object"
 object_height_clearance = 1; // [0:0.5:10]
 // Snap object-fit height up to next 7mm unit (recommended for Gridfinity)
@@ -61,7 +61,7 @@ enable_tray_wall = true;
 // Wall thickness (2mm is strong and prints well)
 tray_wall_thickness = 2.0; // [1.5:0.5:4]
 // Use beautiful honeycomb lattice walls (saves 40%+ filament!)
-wall_pattern = "lattice"; // [solid, lattice]
+wall_pattern = "lattice"; // [lattice:Honeycomb lattice, solid:Solid]
 
 /* [Lattice Wall Settings] */
 // Honeycomb cell size - smaller = more cells, more detail
@@ -95,9 +95,9 @@ holder_recess_depth = 0.9; // [0.5:0.1:2]
 
 /* [Advanced: Packing] */
 // Cylinder arrangement (auto optimizes spacing)
-packing_mode = "auto"; // [auto, grid]
-// Minimum wall thickness between holders
-min_wall_between = 0; // [0:0.5:5]
+packing_mode = "auto"; // [auto:Auto pack, grid:Grid]
+// Minimum wall thickness between holders (0.2mm+ recommended for strength and clean geometry)
+min_wall_between = 0.2; // [0:0.1:5]
 
 /* [Advanced: Base Options] */
 // Use Gridfinity-compatible base (required for stacking/magnets; disable for simple flat bottom)
@@ -106,8 +106,6 @@ enable_gridfinity_base = true;
 plain_bottom_thickness = 2; // [1:0.5:5]
 // Plain bottom chamfer size (decorative edge bevel)
 plain_bottom_chamfer = 1; // [0:0.5:3]
-// Lightweight base with ribs (saves filament on large trays)
-lightweight_base = false;
 // Magnet holes (6mm × 2mm magnets)
 magnet_holes = false;
 // Screw holes (M3 screws)
@@ -717,7 +715,7 @@ module build_gridfinity_base() {
         // Gridfinity base - clipped to match wall footprint for fractional grids
         // Force CGAL evaluation so OpenCSG preview doesn't leak intersection solids.
         render() intersection() {
-            gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options, 0, true, lightweight_base);
+            gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, hole_options, 0, true, only_corners);
             // Clip to wall outer boundary
             translate([0, 0, -1])
             linear_extrude(h_base + 10)

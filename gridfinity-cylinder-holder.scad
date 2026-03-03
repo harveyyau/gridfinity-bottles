@@ -722,24 +722,60 @@ module build_gridfinity_base() {
             rounded_rect_2d(total_width, total_depth, BASE_OUTSIDE_RADIUS);
         }
     } else {
-        // Simple flat bottom (non-gridfinity) with chamfered edges
-        render() difference() {
-            // Main bottom plate - extend into holder zone for proper fusion
-            linear_extrude(plain_bottom_thickness + 0.5)
-            rounded_rect_2d(total_width, total_depth, BASE_OUTSIDE_RADIUS);
-            
-            // Bottom chamfer (decorative bevel on bottom edge)
-            if (plain_bottom_chamfer > 0.01) {
-                translate([0, 0, -0.01])
-                linear_extrude(plain_bottom_chamfer + 0.02, scale = (total_width + total_depth + plain_bottom_chamfer * 4) / (total_width + total_depth))
-                rounded_rect_2d(total_width + plain_bottom_chamfer, total_depth + plain_bottom_chamfer, BASE_OUTSIDE_RADIUS + plain_bottom_chamfer);
+        // Simple flat bottom (non-gridfinity) with chamfered edges.
+        // Build this directly (instead of subtracting oversized chamfer volumes) so:
+        // - the model stays on Z=0 (no “floating” base)
+        // - we don't create a visible bottom “flange” under the tray walls
+        render()
+        union() {
+            base_w = total_width;
+            base_d = total_depth;
+            base_r = BASE_OUTSIDE_RADIUS;
+            base_h = plain_bottom_thickness + 0.5; // extend slightly into holders/walls for clean fusion
+
+            // Bottom chamfer is always safe.
+            ch_req = plain_bottom_chamfer;
+            ch_bottom = min(ch_req, base_h - 0.05, min(base_w, base_d)/2 - 0.05);
+            // Top chamfer is cosmetic; only apply when there are NO tray walls (otherwise it undercuts the wall start).
+            ch_top_req = enable_tray_wall ? 0 : ch_req;
+            ch_top = min(ch_top_req, base_h - ch_bottom - 0.05, min(base_w, base_d)/2 - 0.05);
+
+            // Dimensions for the chamfered “inner” profile (at the chamfer tips).
+            inner_w_b = base_w - 2*ch_bottom;
+            inner_d_b = base_d - 2*ch_bottom;
+            inner_r_b = max(0, base_r - ch_bottom);
+
+            inner_w_t = base_w - 2*ch_top;
+            inner_d_t = base_d - 2*ch_top;
+            inner_r_t = max(0, base_r - ch_top);
+
+            // Bottom chamfer section (45° bevel): smaller at Z=0 → full size at Z=ch_bottom
+            if (ch_bottom > 0.01) {
+                hull() {
+                    translate([0, 0, 0]) linear_extrude(0.05)
+                    rounded_rect_2d(inner_w_b, inner_d_b, inner_r_b);
+                    translate([0, 0, ch_bottom]) linear_extrude(0.05)
+                    rounded_rect_2d(base_w, base_d, base_r);
+                }
             }
-            
-            // Top chamfer (decorative bevel on top edge)
-            if (plain_bottom_chamfer > 0.01) {
-                translate([0, 0, plain_bottom_thickness])
-                linear_extrude(plain_bottom_chamfer + 0.51, scale = (total_width + total_depth - plain_bottom_chamfer * 4) / (total_width + total_depth))
-                rounded_rect_2d(total_width + plain_bottom_chamfer, total_depth + plain_bottom_chamfer, BASE_OUTSIDE_RADIUS + plain_bottom_chamfer);
+
+            // Middle straight section
+            mid_z0 = ch_bottom;
+            mid_h = base_h - ch_bottom - ch_top;
+            if (mid_h > 0.01) {
+                translate([0, 0, mid_z0])
+                linear_extrude(mid_h)
+                rounded_rect_2d(base_w, base_d, base_r);
+            }
+
+            // Top chamfer section (optional): full size at Z=base_h-ch_top → smaller at Z=base_h
+            if (ch_top > 0.01) {
+                hull() {
+                    translate([0, 0, base_h - ch_top]) linear_extrude(0.05)
+                    rounded_rect_2d(base_w, base_d, base_r);
+                    translate([0, 0, base_h]) linear_extrude(0.05)
+                    rounded_rect_2d(inner_w_t, inner_d_t, inner_r_t);
+                }
             }
         }
     }
@@ -897,7 +933,7 @@ module build_tray_wall() {
                 lattice_end = wall_total_height - solid_top;
                 lattice_h = lattice_end - lattice_start;
                 
-                if (lattice_h > 5) {
+                if (lattice_h >= 5) {
                     // Corner protection margin
                     corner_margin = corner_radius + lattice_corner_margin;
                     flat_w = total_width - 2 * (corner_radius + lattice_corner_margin);
@@ -946,6 +982,18 @@ module build_tray_wall() {
                             honeycomb_hex_pattern_global_2d(flat_w + 10, lattice_h + 10, lattice_cell_size, lattice_rib_thickness);
                         }
                         
+                        // Receiver pocket
+                        if (stacking_enabled && stacking_band_h > 0.01) {
+                            translate([0, 0, wall_total_height + eps])
+                            stacking_receiver_cut(total_width, total_depth, tray_wall_thickness, corner_radius, stacking_clearance);
+                        }
+                    }
+                } else {
+                    // Too little height for a meaningful lattice band; fall back to solid wall
+                    render() difference() {
+                        linear_extrude(wall_total_height)
+                        wall_ring_2d(total_width, total_depth, tray_wall_thickness, corner_radius);
+
                         // Receiver pocket
                         if (stacking_enabled && stacking_band_h > 0.01) {
                             translate([0, 0, wall_total_height + eps])

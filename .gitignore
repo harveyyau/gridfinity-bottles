@@ -9,3 +9,6 @@ stls/
 *.3mf
 *.png
 
+# Bambu Studio CLI artifact
+result.json
+

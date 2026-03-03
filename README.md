@@ -28,12 +28,20 @@
 - MakerWorld runs an OpenSCAD-compatible engine (based on the official 2021 release), so keep scripts conservative and test tricky changes.
 
 ### Common Presets (Built-in):
-- **AA Batteries (2x1) - Lattice, Stackable**
+- **AA Batteries (2x1) - Lattice, Stackable (Default)**
 - **AA Batteries (2x1) - Fits Object Height**
 - **AA Batteries (2x1) - Flat Bottom**
+- **AAA Batteries (2x1) - Lattice, Stackable**
+- **18650 Li-ion Cells (2x1) - Lattice**
+- **CR123A Cells (2x1) - Lattice**
+- **Lip Balm Tubes (2x1) - Lattice**
+- **Essential Oil Bottles 15mL (2x2) - Lattice**
+- **Microcentrifuge Tubes 1.5mL (2x1) - Solid Walls**
+- **Lab Tubes 15mL Conical (2x1) - Lattice**
+- **Lab Tubes 50mL Conical (3x2) - Lattice**
 - **Empty Tray/Bin (2x1) - No Holders**
 - **Paint Pots (2x2) - Lattice**
-- **Spice Jars (3x3) - Solid Walls**
+- **Spice Jars (3x3) - Lattice**
 
 ## 🐝 Why Lattice Walls?
 
@@ -92,6 +100,43 @@ Lattice walls offer several advantages:
 - For large trays, consider disabling the Gridfinity base (flat bottom) if you don't need baseplate compatibility
 - Print with brim if you have adhesion issues
 - PETG or PLA work great - PETG for durability
+
+## 🧵 Bambu Studio Project File (.3mf) (Optional)
+
+If you print with Bambu Studio, a `.3mf` project file is nicer than a plain STL because it can preserve **plate layout** (and optional print settings).
+
+- **Default printer**: Bambu Lab **P2S** (0.4 nozzle)
+- **Default process**: 0.20mm Standard
+- **Default filament**: Bambu PLA Basic
+
+### If you just want to print
+
+- Download the STL (or use the MakerWorld customizer) and slice normally in Bambu Studio.
+- If you open a `.3mf` and your printer is different, Bambu Studio will prompt you to switch printer/profile.
+
+### (Optional) Regenerate the example `.3mf` bundle from this repo
+
+This is only needed if you’re rebuilding the included example bundle locally.
+
+- Build the helper (once):
+
+```bash
+docker build -t gridfinity-bambu-studio-cli:02.05.00.67 docker/bambu-studio-cli
+```
+
+- Generate the `.3mf` bundle:
+
+```bash
+python3 generate_bambu_profiles.py
+```
+
+This writes:
+- `bambu_profiles/all_examples_many_plates.3mf` (one example per plate, labeled)
+
+Optional extras:
+- `--packed` → also write `bambu_profiles/all_examples_packed.3mf`
+- `--individual` → also write `bambu_profiles/<preset>.3mf`
+- `--all` → export everything
 
 ## 📏 Sizing Guide
 

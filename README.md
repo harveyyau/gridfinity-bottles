@@ -201,6 +201,13 @@ The honeycomb pattern is created by subtracting hex holes from each wall face in
 
 ## 📝 Version History
 
+### v3.0 - Multi-Variant Organizers
+- Added **rectangular pocket** variant: `gridfinity-rect-pocket-tray.scad`
+- Improved customizer usability: keep **object dimensions** at the top of each model
+- Rect pockets: choose **rounded vs sharp inner corners** (with optional radius)
+- Oversize objects no longer hard-fail: if a holder/pocket can’t fit the opening, the model falls back to **one centered cutout** (it will be clipped) instead of crashing
+- Added build/test automation for MakerWorld-ready self-contained `.scad` files
+
 ### v2.0 - Lattice Walls Update
 - Complete rewrite of lattice wall system
 - Single-piece architecture for manifold geometry

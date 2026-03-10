@@ -27,14 +27,15 @@ function rect_pocket_positions() =
         spacing_x = pocket_outer_w + min_wall_between,
         spacing_y = pocket_outer_d + min_wall_between
     )
-    assert(
-        avail_w >= 0 && avail_h >= 0,
-        str(
-            "No room for pockets: object_width=", object_width,
-            "mm object_depth=", object_depth, "mm is too large for opening ",
-            opening_width, "×", opening_depth, "mm. Increase gridx/gridy, reduce tray_wall_thickness, disable tray walls, or disable holders."
-        )
-    )
+    // Graceful fallback: if the pocket is too large for the opening, avoid crashing and
+    // place a single centered pocket. It will be clipped by the tray opening/walls.
+    (avail_w < 0 || avail_h < 0) ?
+        let(_warn = echo(str(
+            "WARNING: Pocket does not fit the tray opening; placing 1 centered pocket (will be clipped). ",
+            "object_width=", object_width, "mm object_depth=", object_depth, "mm (clearance=", pocket_clearance_xy, "mm); opening=", opening_width, "×", opening_depth, "mm."
+        )))
+        [[opening_width/2, opening_depth/2]]
+    :
     let(
         cols = max(1, floor(avail_w / spacing_x) + 1),
         rows = max(1, floor(avail_h / spacing_y) + 1),

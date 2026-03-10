@@ -92,14 +92,15 @@ function generate_valid_positions() =
         avail_w = opening_width - 2 * min_edge_dist,
         avail_h = opening_depth - 2 * min_edge_dist
     )
-    assert(
-        avail_w >= 0 && avail_h >= 0,
-        str(
-            "No room for holders: cylinder_diameter=", cylinder_diameter,
-            "mm (clearance=", holder_clearance, "mm) is too large for opening ",
-            opening_width, "×", opening_depth, "mm. Increase gridx/gridy, reduce tray_wall_thickness, disable tray walls, or disable holders."
-        )
-    )
+    // Graceful fallback: if the item is too large for the opening, avoid crashing and
+    // place a single centered holder. It will be clipped by the tray opening/walls.
+    (avail_w < 0 || avail_h < 0) ?
+        let(_warn = echo(str(
+            "WARNING: Holder does not fit the tray opening; placing 1 centered holder (will be clipped). ",
+            "cylinder_diameter=", cylinder_diameter, "mm (clearance=", holder_clearance, "mm); opening=", opening_width, "×", opening_depth, "mm."
+        )))
+        [[opening_width/2, opening_depth/2]]
+    :
     let(
         // Grid positions (preferred when counts are equal)
         grid_positions = generate_grid_positions(avail_w, avail_h, holder_spacing),

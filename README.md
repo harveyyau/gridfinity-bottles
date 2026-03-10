@@ -1,6 +1,6 @@
-# Gridfinity Cylinder Holder with Honeycomb Lattice Walls
+# Gridfinity Organizers with Honeycomb Lattice Walls
 
-**Customizable Gridfinity-compatible organizers for bottles, jars, paint pots, and any cylindrical objects!**
+**Customizable Gridfinity-compatible trays for organizing cylindrical and rectangular objects.**
 
 ## ✨ Features
 
@@ -9,25 +9,45 @@
 - 📏 **Fully Customizable** - Adjust every dimension to fit your needs
 - 🎨 **Multiple Patterns** - Choose solid walls or elegant lattice design
 - 📦 **Stackable Option** - Build vertical storage towers
-- 🔧 **Smart Packing** - Auto-arranges cylinders for optimal fit
+- 🔧 **Smart Packing (Cylinders)** - Auto-arranges cylinders for optimal fit
 - ⚡ **Plain Bottom Option** - Disable gridfinity base for simple standalone organizer
 
 ## 🎯 Quick Start
 
-### For AA Batteries (Default):
-1. Measure your item diameter with calipers
-2. Set `cylinder_diameter` (add ~0.5mm for easy fit)
-3. Measure your item height and set `object_height`
-4. Choose `height_mode` (object / exclude base / total height)
-5. Adjust `gridx` and `gridy` for tray size
-6. Optional: enable `enable_raised_floor` and/or `enable_stacking`
+### Cylinder holders (batteries, jars, paint pots)
+
+- Open `gridfinity-cylinder-holder.scad`
+- Set `cylinder_diameter` and `object_height`
+- Choose `gridx` / `gridy` and `height_mode`
+
+### Rectangular pockets (adapters, tools, small boxes)
+
+- Open `gridfinity-rect-pocket-tray.scad`
+- Set `object_width`, `object_depth`, and `object_height`
+- Choose `gridx` / `gridy` and `height_mode`
 
 ## 🧩 MakerWorld Customizer (Parametric Model Maker)
 
-- Upload `gridfinity-cylinder-holder.scad` to your MakerWorld model page to enable the **Customize** button.
+- Upload a `.scad` file to your MakerWorld model page to enable the **Customize** button:
+  - `gridfinity-cylinder-holder.scad` (cylindrical holders)
+  - `gridfinity-rect-pocket-tray.scad` (rectangular pockets)
 - MakerWorld runs an OpenSCAD-compatible engine (based on the official 2021 release), so keep scripts conservative and test tricky changes.
 
-### Common Presets (Built-in):
+### (Optional) Export STLs from included presets
+
+- **Cylinder presets**:
+
+```bash
+python3 generate_stls.py
+```
+
+- **Rect-pocket presets**:
+
+```bash
+python3 generate_stls.py --scad gridfinity-rect-pocket-tray.scad --params gridfinity-rect-pocket-tray.json
+```
+
+### Common Presets (Built-in, cylinder model):
 - **AA Batteries (2x1) - Lattice, Stackable (Default)**
 - **AA Batteries (2x1) - Fits Object Height**
 - **AA Batteries (2x1) - Flat Bottom**
@@ -55,13 +75,16 @@ Lattice walls offer several advantages:
 ## 📐 Key Parameters
 
 ### Essential Settings:
-- **cylinder_diameter**: Diameter of your items (use calipers!)
+- **cylinder_diameter**: Diameter of your items (cylinder model)
+- **object_width / object_depth**: Footprint of your item (rect pocket model)
 - **object_height**: Height of your item (measured end-to-end)
+- **pocket_inner_corner_style**: Rect pockets — `rounded` (default) or `sharp`
+- **pocket_corner_radius**: Rect pockets — inside corner radius (used when rounded)
 - **height_mode**: How tray Z height is specified (object / exclude base / total)
 - **gridx / gridy**: Tray size in gridfinity units (1 unit = 42mm)
 - **enable_tray_wall**: Add walls around the tray (recommended!)
 - **wall_pattern**: Choose `lattice` or `solid`
-- **enable_holders**: Generate cylinder holders (disable for an empty tray/bin)
+- **enable_holders**: Generate holders/pockets (disable for an empty tray/bin)
 
 ### Height modes (Z):
 - **object**: Tray height is derived from `object_height` (+ `object_height_clearance`), optionally snapped to 7mm (1u)

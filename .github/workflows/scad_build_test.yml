@@ -1,0 +1,26 @@
+name: Build & test MakerWorld SCADs
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scad:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install OpenSCAD
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openscad
+
+      - name: Verify generated SCADs are up to date
+        run: |
+          python3 tools/build_makerworld_variants.py --check
+
+      - name: Export test STLs (compile + manifold sanity)
+        run: |
+          python3 tools/test_makerworld_variants.py --no-build
+

@@ -5,6 +5,8 @@ __pycache__/
 # Generated exports / artifacts
 stl_exports/
 stls/
+dist/
+bambu_profiles/
 *.stl
 *.3mf
 *.png

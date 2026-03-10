@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Batch STL generator for gridfinity-cylinder-holder.scad
-Uses the OpenSCAD customizer parameter sets in gridfinity-cylinder-holder.json.
+Batch STL generator for Gridfinity OpenSCAD variants.
+
+By default this exports presets from `gridfinity-cylinder-holder.json` using
+`gridfinity-cylinder-holder.scad`, but you can pass `--scad` and `--params` to
+export other variants (for example `gridfinity-rect-pocket-tray.scad`).
 """
 
 import argparse
